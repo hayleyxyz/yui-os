@@ -36,5 +36,8 @@ void boot_main() {
     memcpy(&cpu.vendor[8], &c, 4);
     cpu.vendor[12] = 0x00;
 
-    io_puts(cpu.vendor);
+    //io_puts(cpu.vendor);
+    //io_putc('\n');
+
+    //io_putl(a);
 }
