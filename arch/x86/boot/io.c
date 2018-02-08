@@ -1,0 +1,46 @@
+#include <types.h>
+
+volatile u16 * base_text_buffer = (volatile u16 *)0xB8000;
+
+volatile u16 * current_text_buffer = (volatile u16 *)0xB8000;
+
+static const u16 TERM_WIDTH = 80;
+static const u16 TERM_HEIGHT = 25;
+
+
+static inline u16 terminal_entry(char ch, u8 fg, u8 bg) {
+    return (u16)ch | ((fg | bg << 4) << 8);
+}
+
+
+void io_putc(char ch) {
+    if(ch == '\n') {
+        // Go to beginning of next line
+        // TODO: clean this up
+        current_text_buffer = (volatile u16 *)((u32)current_text_buffer +
+            ((TERM_WIDTH * sizeof(u16)) - (((u32)current_text_buffer - (u32)base_text_buffer) % TERM_WIDTH)));
+    }
+    else {
+        *current_text_buffer++ = terminal_entry(ch, 7, 0);
+    }
+}
+
+void io_puts(const char * str) {
+    while(*str) {
+        io_putc(*str);
+        str++;
+    }
+}
+
+void io_clear() {
+    int x, y;
+    volatile u16 * copy;
+
+    copy = current_text_buffer = base_text_buffer;
+
+    for(y = 0; y < TERM_HEIGHT; y++) {
+        for(x = 0; x < TERM_WIDTH; x++) {
+            *copy++ = 0;
+        }
+    }
+}
