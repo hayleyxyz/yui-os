@@ -14,7 +14,7 @@ align 4
     dd 0, 0, 0, 0, 0 ; address fields
 
 [BITS 32]
-extern boot_main
+extern multiboot_main
 section .text
 global _start
 _start:
@@ -22,7 +22,10 @@ _start:
 
     push    ebx
     push    eax
-    call    boot_main
+    call    multiboot_main
+
+    lgdt [GDT64.Pointer]
+    jmp GDT64.Code:Realm64
 
     cli
 l:  hlt
@@ -43,3 +46,49 @@ _pdt:
     resb 4096
 _pt:
     resb 4096
+
+section .data
+align 16
+GDT64:                           ; Global Descriptor Table (64-bit).
+    .Null: equ $ - GDT64         ; The null descriptor.
+    dw 0                         ; Limit (low).
+    dw 0                         ; Base (low).
+    db 0                         ; Base (middle)
+    db 0                         ; Access.
+    db 0                         ; Granularity.
+    db 0                         ; Base (high).
+    .Code: equ $ - GDT64         ; The code descriptor.
+    dw 0                         ; Limit (low).
+    dw 0                         ; Base (low).
+    db 0                         ; Base (middle)
+    db 10011010b                 ; Access (exec/read).
+    db 00100000b                 ; Granularity.
+    db 0                         ; Base (high).
+    .Data: equ $ - GDT64         ; The data descriptor.
+    dw 0                         ; Limit (low).
+    dw 0                         ; Base (low).
+    db 0                         ; Base (middle)
+    db 10010010b                 ; Access (read/write).
+    db 00000000b                 ; Granularity.
+    db 0                         ; Base (high).
+    .Pointer:                    ; The GDT-pointer.
+    dw $ - GDT64 - 1             ; Limit.
+    dq GDT64                     ; Base.
+
+
+; Use 64-bit.
+[BITS 64]
+ 
+Realm64:
+    cli                           ; Clear the interrupt flag.
+    mov ax, GDT64.Data            ; Set the A-register to the data descriptor.
+    mov ds, ax                    ; Set the data segment to the A-register.
+    mov es, ax                    ; Set the extra segment to the A-register.
+    mov fs, ax                    ; Set the F-segment to the A-register.
+    mov gs, ax                    ; Set the G-segment to the A-register.
+    mov ss, ax                    ; Set the stack segment to the A-register.
+    mov edi, 0xB8000              ; Set the destination index to 0xB8000.
+    mov rax, 0x1F201F201F201F20   ; Set the A-register to 0x1F201F201F201F20.
+    mov ecx, 500                  ; Set the C-register to 500.
+    rep stosq                     ; Clear the screen.
+    hlt

@@ -16,6 +16,8 @@ int io_iprintf(const char *fmt, ...);
 #define EFER_LME   1 << 8
 #define MSR_EFER    0xC0000080 // Used with rdmsr(MSR_EFER, ...)
 
+#define PG_PRESENT_MASK (1 << 0)
+
 static inline void rdmsr(u32 msr, u32 * d, u32 * a) {
     asm volatile(
         "rdmsr"
