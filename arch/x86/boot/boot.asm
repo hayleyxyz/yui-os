@@ -6,7 +6,7 @@ MULTIBOOT_CHECKSUM      equ -(MULTIBOOT_HEADER_MAGIC + MULTIBOOT_HEADER_FLAGS)
 
 STACK_SIZE              equ 4096
 
-section .data
+section .multiboot
 align 4
     dd MULTIBOOT_HEADER_MAGIC
     dd MULTIBOOT_HEADER_FLAGS
@@ -33,3 +33,13 @@ align 4096
 stack_start:
     resb STACK_SIZE
 stack_end:
+
+global _pml4t, _pdpt, _pdt, _pt
+_pml4t:
+    resb 4096
+_pdpt:
+    resb 4096
+_pdt:
+    resb 4096
+_pt:
+    resb 4096

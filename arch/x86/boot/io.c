@@ -1,4 +1,6 @@
 #include <types.h>
+#include <stdarg.h>
+#include "mini-printf.h"
 
 volatile u16 * base_text_buffer = (volatile u16 *)0xB8000;
 
@@ -7,7 +9,7 @@ volatile u16 * current_text_buffer = (volatile u16 *)0xB8000;
 static const u16 TERM_WIDTH = 80;
 static const u16 TERM_HEIGHT = 25;
 
-static char internal_buffer[50];
+static u8 internal_buffer[50];
 
 static inline u16 terminal_entry(char ch, u8 fg, u8 bg) {
     return (u16)ch | ((fg | bg << 4) << 8);
@@ -46,53 +48,68 @@ void io_clear() {
     }
 }
 
-void swap(int * a, int * b) {
-    int temp = *a;
-    *a = *b;
-    *b = temp;
-}
-
-void reverse(char str[], int length) {
-    int start = 0;
-    int end = length -1;
-
-    while (start < end) {
-        swap(*(str+start), *(str+end));
-        start++;
-        end--;
-    }
-}
-
-// TODO: str length
-void inttostr(u32 num, char * str, int base) {
+u32 strlen(u8 * str) {
     u32 i = 0;
-    bool neg = false;
 
-    if(num == 0) {
-        str[i] = '0';
-        str[++i] = 0x00;
+    while(*str++) {
+        i++;
     }
 
-    if(num < 0 && base == 10) {
-        neg = true;
-        num = -num;
-    }
-
-    while(num != 0) {
-        int rem = num % base;
-        str[i++] = (rem > 9) ? (rem-10) + 'a' : rem + '0';
-        num = num / base;
-    }
-
-    if(neg) {
-        str[i++] = '-';
-    }
-
-    str[i] = 0x00;
-
+    return i;
 }
 
-void io_putl(u32 num) {
-    inttostr(num, &internal_buffer, 10);
-    io_puts(num);
+u8 * strrev(u8 *str) {
+    u8 *p1, *p2;
+
+    if (! str || ! *str) {
+        return str;
+    }
+
+    for (p1 = str, p2 = str + strlen(str) - 1; p2 > p1; ++p1, --p2) {
+        *p1 ^= *p2;
+        *p2 ^= *p1;
+        *p1 ^= *p2;
+    }
+    return str;
+}
+
+u32 inttostr(u32 num, u8 * str, u32 len, u32 base)
+{
+    u32 sum = num;
+    u32 i = 0;
+    u32 digit;
+    if (len == 0)
+        return -1;
+    do
+    {
+        digit = sum % base;
+        if (digit < 0xA)
+            str[i++] = '0' + digit;
+        else
+            str[i++] = 'A' + digit - 0xA;
+        sum /= base;
+    }while (sum && (i < (len - 1)));
+    if (i == (len - 1) && sum)
+        return -1;
+    str[i] = '\0';
+    strrev(str);
+    return 0;
+}
+
+void io_putl(u32 num, u32 base) {
+    inttostr(num, internal_buffer, sizeof(internal_buffer), base);
+    io_puts((const char *)internal_buffer);
+}
+
+int io_iprintf(const char *fmt, ...)
+{
+    int ret;
+    va_list va;
+    va_start(va, fmt);
+    ret = mini_vsnprintf(internal_buffer, sizeof(internal_buffer), fmt, va);
+    va_end(va);
+
+    io_puts(internal_buffer);
+
+    return ret;
 }
