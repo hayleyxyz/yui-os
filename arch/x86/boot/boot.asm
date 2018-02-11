@@ -24,12 +24,10 @@ _start:
     push    eax
     call    multiboot_main
 
-    lgdt [GDT64.Pointer]
-    jmp GDT64.Code:Realm64
+    lgdt    [GDT64.Pointer]
+    jmp     GDT64.Code:_longmode_start
 
-    cli
-l:  hlt
-    jmp     l
+    hlt
 
 section .bss
 align 4096
@@ -37,15 +35,20 @@ stack_start:
     resb STACK_SIZE
 stack_end:
 
-global _pml4t, _pdpt, _pdt, _pt
-_pml4t:
+global pml4t, pdpt, pdt, pt
+pml4t:
     resb 4096
-_pdpt:
+pdpt:
     resb 4096
-_pdt:
+pdt:
     resb 4096
-_pt:
+pt:
     resb 4096
+
+align 16
+global gdt
+gdt:
+    resb 0x100
 
 section .data
 align 16
@@ -76,10 +79,10 @@ GDT64:                           ; Global Descriptor Table (64-bit).
     dq GDT64                     ; Base.
 
 
-; Use 64-bit.
 [BITS 64]
- 
-Realm64:
+section .text64
+;extern kernel_main
+_longmode_start:
     cli                           ; Clear the interrupt flag.
     mov ax, GDT64.Data            ; Set the A-register to the data descriptor.
     mov ds, ax                    ; Set the data segment to the A-register.
@@ -91,4 +94,11 @@ Realm64:
     mov rax, 0x1F201F201F201F20   ; Set the A-register to 0x1F201F201F201F20.
     mov ecx, 500                  ; Set the C-register to 500.
     rep stosq                     ; Clear the screen.
+    ;call kernel_main
     hlt
+
+section .kernel64
+align 4096
+global _kernel64
+_kernel64:
+    incbin 'yui-os-kernel-x86-64.elf';

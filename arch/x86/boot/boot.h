@@ -16,7 +16,18 @@ int io_iprintf(const char *fmt, ...);
 #define EFER_LME   1 << 8
 #define MSR_EFER    0xC0000080 // Used with rdmsr(MSR_EFER, ...)
 
-#define PG_PRESENT_MASK (1 << 0)
+#define PG_PRESENT  (1 << 0)
+#define PG_RW       (1 << 1)
+#define PG_USER     (1 << 2)
+#define PG_PWT      (1 << 3)
+#define PG_PCD      (1 << 4)
+#define PG_ACCESSED (1 << 5)
+#define PG_DIRTY    (1 << 6)
+#define PG_PSE      (1 << 7)
+#define PG_GLOBAL   (1 << 8)
+#define PG_PSE_PAT  (1 << 12)
+#define PG_PKRU     (1 << 59)
+#define PG_NX       (1 << 63)
 
 static inline void rdmsr(u32 msr, u32 * d, u32 * a) {
     asm volatile(

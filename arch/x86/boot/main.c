@@ -1,60 +1,54 @@
 #include "boot.h"
 
-extern volatile u32 _pml4t, _pdpt, _pdt, _pt;
+extern u32 pml4t, pdpt, pdt, pt;
 
-#define DUMP_CR(x) \
-    io_puts("cr"#x": 0x");  \
-    io_putl(0, 10);
+extern u8 * _kernel64;
 
-void dump_regs() {
-    u32 a, d;
+static void enable_paging() {
+    u32 i;
 
-    io_iprintf("cr0: 0x%08x\n", read_cr0());
-    io_iprintf("cr3: 0x%08x\n", read_cr3());
-    io_iprintf("cr4: 0x%08x\n", read_cr4());
-
-    rdmsr(MSR_EFER, &d, &a);
-    io_iprintf("msr[efer]: edx: 0x%08x eax: 0x%08x", d, a);
-    io_putc('-');
-    io_putc('\n');
-}
-
-void multiboot_main() {
-    u32 a, b, c, d, i;
-    u32 * pt_ptr, ** pptr;
-
-    io_clear();
-    io_puts("yui-os v0.0.1\n");
-
-    dump_regs();
-
-    io_iprintf("_pml4t: 0x%08x\n", &_pml4t);
-    io_iprintf("_pdpt: 0x%08x\n", &_pdpt);
-    io_iprintf("_pdt: 0x%08x\n", &_pdt);
-    io_iprintf("_pt: 0x%08x\n", &_pt);
-
-
-    _pml4t = (u32)&_pdpt | 0b11;
-    _pdpt = (u32)&_pdt | 0b11;
-    _pdt = (u32)&_pt | 0b11;
+    // Populate paging tables
+    // TODO: PML5
+    pml4t = (u32)&pdpt | PG_PRESENT | PG_RW;
+    pdpt = (u32)&pdt | PG_PRESENT | PG_RW;
+    pdt = (u32)&pt | PG_PRESENT | PG_RW;
 
     for(i = 0; i < 4096 / 8; i++) {
-        pt_ptr = _pt;
-
-        ((u32*)&_pt)[i * 2] = (i * 0x1000) | 0b11;
+        ((u32*)&pt)[i * 2] = (i * 0x1000) | PG_PRESENT | PG_RW;
     }
 
-    write_cr3(&_pml4t);
+    // Set cr3 to pml4t address
+    write_cr3(read_cr3() | (u32)&pml4t);
+
+    // Enable Physical Address Extension
+    write_cr4(read_cr4() | CR4_PAE);
+}
+
+static void enable_longmode() {
+    u32 d, a;
 
     rdmsr(MSR_EFER, &d, &a);
     a |= EFER_LME;
     wrmsr(MSR_EFER, d, a);
+}
 
-    write_cr4(read_cr4() | CR4_PAE);
+void multiboot_main() {
+    io_clear();
+    io_puts("yui-os v0.0.1\n");
 
-    dump_regs();
+    // TOOD: cpuid checks
 
-    write_cr0(read_cr0() | CR0_PG | CR0_PE);
-    
-    io_puts("now in compatability mode?\n");
+    enable_paging();
+
+    enable_longmode();
+
+    // Enable paging in longmode
+    write_cr0(read_cr0() | CR0_PG);
+
+
+    //io_iprintf("_kernel64: %s\n", _kernel64);
+
+    while(true) {
+
+    }
 }
