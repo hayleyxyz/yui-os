@@ -1,17 +1,18 @@
 #include "boot.h"
+#include "elf.h"
 
-extern u32 pml4t, pdpt, pdt, pt;
+extern const void pml4t, pdpt, pdt, pt;
 
-extern u8 * _kernel64;
+extern const void _kernel64;
 
 static void enable_paging() {
     u32 i;
 
     // Populate paging tables
     // TODO: PML5
-    pml4t = (u32)&pdpt | PG_PRESENT | PG_RW;
-    pdpt = (u32)&pdt | PG_PRESENT | PG_RW;
-    pdt = (u32)&pt | PG_PRESENT | PG_RW;
+    *(u32*)&pml4t = (u32)&pdpt | PG_PRESENT | PG_RW;
+    *(u32*)&pdpt = (u32)&pdt | PG_PRESENT | PG_RW;
+    *(u32*)&pdt = (u32)&pt | PG_PRESENT | PG_RW;
 
     for(i = 0; i < 4096 / 8; i++) {
         ((u32*)&pt)[i * 2] = (i * 0x1000) | PG_PRESENT | PG_RW;
@@ -32,6 +33,15 @@ static void enable_longmode() {
     wrmsr(MSR_EFER, d, a);
 }
 
+void parse_kernel() {
+    struct elf64_hdr * elf_hdr;
+
+    elf_hdr = (struct elf64_hdr *)&_kernel64;
+
+    io_iprintf("_kernel64: %s\n", (char *)&_kernel64);
+    io_iprintf("entry: 0x%08x\n", elf_hdr->e_entry);
+}
+
 void multiboot_main() {
     io_clear();
     io_puts("yui-os v0.0.1\n");
@@ -45,8 +55,7 @@ void multiboot_main() {
     // Enable paging in longmode
     write_cr0(read_cr0() | CR0_PG);
 
-
-    //io_iprintf("_kernel64: %s\n", _kernel64);
+    parse_kernel();
 
     while(true) {
 

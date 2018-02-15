@@ -5,6 +5,9 @@ TARGET_x86 = yui-os-boot-x86
 TARGET_x86_64 = yui-os-kernel-x86-64
 TARGET = yui-os
 
+$(TARGET).img: $(TARGET_x86).elf $(TARGET_x86_64).elf
+	cp $^ iso/boot
+	grub-mkrescue -o '$@' iso
 
 $(TARGET_x86).elf: $(TARGET_x86).debug.elf
 	objcopy --strip-debug $^ $@
@@ -36,4 +39,4 @@ kernel/main.o: kernel/main.c
 .PHONY: clean
 
 clean:
-	rm -f arch/x86/boot/*.o kernel/*.o *.elf $(TARGET).bin
+	rm -f arch/x86/boot/*.o kernel/*.o *.elf $(TARGET).img
