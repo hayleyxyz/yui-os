@@ -1,11 +1,11 @@
-CROSS = i686-elf-
+CROSS = i386-elf-
 CFLAGS = -ffreestanding -nostdlib -mno-red-zone -fno-stack-protector -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx -maccumulate-outgoing-args -Wall -Wextra -I./include -fno-exceptions -g -DDebug
 
 TARGET_x86 = yui-os-boot-x86
 TARGET_x86_64 = yui-os-kernel-x86-64
 TARGET = yui-os
 
-$(TARGET).img: $(TARGET_x86).elf $(TARGET_x86_64).elf
+$(TARGET).iso: $(TARGET_x86).elf $(TARGET_x86_64).elf
 	cp $^ iso/boot
 	grub-mkrescue -o '$@' iso
 
@@ -39,4 +39,4 @@ kernel/main.o: kernel/main.c
 .PHONY: clean
 
 clean:
-	rm -f arch/x86/boot/*.o kernel/*.o *.elf $(TARGET).img
+	rm -f arch/x86/boot/*.o kernel/*.o *.elf $(TARGET).iso
