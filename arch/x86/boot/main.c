@@ -57,7 +57,5 @@ void multiboot_main() {
 
     parse_kernel();
 
-    while(true) {
-
-    }
+    //for(;;) {}
 }
