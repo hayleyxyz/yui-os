@@ -58,8 +58,4 @@ void multiboot_main() {
     write_cr0(read_cr0() | CR0_PG);
 
     parse_kernel();
-
-
-
-    for(;;) {}
 }

@@ -2,25 +2,16 @@ ENTRY(kernel_main)
 
 SECTIONS
 {
-    . = 0x10000;
+    . = 4096;
 
-    .text BLOCK(4K) : ALIGN(4K)
-    {
+    .text ALIGN(4096) : {
+        QUAD(kernel_main)
         *(.text)
-    }
-
-    .rodata BLOCK(4K) : ALIGN(4K)
-    {
         *(.rodata)
-    }
-
-    .data BLOCK(4K) : ALIGN(4K)
-    {
         *(.data)
     }
     
-    .bss BLOCK(4K) : ALIGN(4K)
-    {
+    .bss ALIGN(4096) : {
         *(.bss)
     }
 }

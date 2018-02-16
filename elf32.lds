@@ -7,7 +7,7 @@ SECTIONS
 {
     . = 0;
 
-    .text ALIGN(4K) : {
+    .text ALIGN(4096) : {
         *(.multiboot)
         *(.text)
         *(.rodata)
@@ -15,7 +15,13 @@ SECTIONS
         *(.longmode)
     }
 
-    .bss ALIGN(4K) : {
+     _text_end = ALIGN(4096);
+
+    . = 0x10000;
+
+    .bss ALIGN(4096) : {
         *(.bss)
     }
+
+    _bss_end = .;
 }

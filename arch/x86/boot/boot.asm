@@ -7,6 +7,8 @@ MULTIBOOT_CHECKSUM      equ -(MULTIBOOT_HEADER_MAGIC + MULTIBOOT_HEADER_FLAGS)
 
 STACK_SIZE              equ 4096
 
+extern multiboot_main, _bss_end
+
 section .multiboot
 align 4
 _multiboot:
@@ -22,7 +24,6 @@ _multiboot:
 
 
 [BITS 32]
-extern multiboot_main
 section .text
 global _start
 _start:
@@ -52,8 +53,6 @@ pdt:
     resb 4096
 pt:
     resb 4096
-
-_bss_end:
 
 section .data
 align 16
@@ -86,18 +85,14 @@ GDT64:                           ; Global Descriptor Table (64-bit).
 
 [BITS 64]
 section .longmode
-;extern kernel_main
 _longmode_start:
-    cli                           ; Clear the interrupt flag.
-    mov ax, GDT64.Data            ; Set the A-register to the data descriptor.
-    mov ds, ax                    ; Set the data segment to the A-register.
-    mov es, ax                    ; Set the extra segment to the A-register.
-    mov fs, ax                    ; Set the F-segment to the A-register.
-    mov gs, ax                    ; Set the G-segment to the A-register.
-    mov ss, ax                    ; Set the stack segment to the A-register.
-    mov edi, 0xB8000              ; Set the destination index to 0xB8000.
-    mov rax, 0x1F201F201F201F20   ; Set the A-register to 0x1F201F201F201F20.
-    mov ecx, 500                  ; Set the C-register to 500.
-    rep stosq                     ; Clear the screen.
-    ;call kernel_main
-    hlt
+    cli
+    mov ax, GDT64.Data
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
+    mov rdx, 0x1000
+    mov rdx, [rdx]
+    jmp rdx

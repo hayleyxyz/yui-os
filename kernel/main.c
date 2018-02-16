@@ -11,6 +11,8 @@ static inline u16 terminal_entry(char ch, u8 fg, u8 bg) {
     return (u16)ch | ((fg | bg << 4) << 8);
 }
 
+void kernel_main();
+
 void io_putc_l64(char ch) {
     if(ch == '\n') {
         // Go to beginning of next line
@@ -32,4 +34,6 @@ void io_puts_l64(const char * str) {
 
 void kernel_main() {
 	io_puts_l64("penisbutt");
+
+    for(;;) { asm volatile("hlt"); }
 }
