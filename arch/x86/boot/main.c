@@ -3,7 +3,7 @@
 
 extern const void pml4t, pdpt, pdt, pt;
 
-extern const void _kernel64;
+const volatile u32 * text64 = (u32 *)0x10000;
 
 static void enable_paging() {
     u32 i;
@@ -36,10 +36,12 @@ static void enable_longmode() {
 void parse_kernel() {
     struct elf64_hdr * elf_hdr;
 
-    elf_hdr = (struct elf64_hdr *)&_kernel64;
+    //elf_hdr = (struct elf64_hdr *)&_kernel64;
 
-    io_iprintf("_kernel64: %s\n", (char *)&_kernel64);
-    io_iprintf("entry: 0x%08x\n", elf_hdr->e_entry);
+    //io_iprintf("_kernel64: %s\n", (char *)&_kernel64);
+    //io_iprintf("entry: 0x%08x\n", elf_hdr->e_entry);
+    io_iprintf("text: 0x%08x\n", text64);
+    io_iprintf("text: 0x%08x\n", *text64);
 }
 
 void multiboot_main() {
@@ -57,5 +59,7 @@ void multiboot_main() {
 
     parse_kernel();
 
-    //for(;;) {}
+
+
+    for(;;) {}
 }

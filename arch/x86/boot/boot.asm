@@ -1,17 +1,25 @@
 MULTIBOOT_PAGE_ALIGN    equ (1 << 0)
 MULTIBOOT_MEMORY_INFO   equ (1 << 1)
+MULTIBOOT_AOUT_KLUDGE   equ (1 << 16)
 MULTIBOOT_HEADER_MAGIC  equ 0x1BADB002
-MULTIBOOT_HEADER_FLAGS  equ MULTIBOOT_PAGE_ALIGN | MULTIBOOT_MEMORY_INFO
+MULTIBOOT_HEADER_FLAGS  equ MULTIBOOT_PAGE_ALIGN | MULTIBOOT_MEMORY_INFO | MULTIBOOT_AOUT_KLUDGE
 MULTIBOOT_CHECKSUM      equ -(MULTIBOOT_HEADER_MAGIC + MULTIBOOT_HEADER_FLAGS)
 
 STACK_SIZE              equ 4096
 
 section .multiboot
 align 4
-    dd MULTIBOOT_HEADER_MAGIC
-    dd MULTIBOOT_HEADER_FLAGS
-    dd MULTIBOOT_CHECKSUM
-    dd 0, 0, 0, 0, 0 ; address fields
+_multiboot:
+    dd MULTIBOOT_HEADER_MAGIC   ; magic
+    dd MULTIBOOT_HEADER_FLAGS   ; flags
+    dd MULTIBOOT_CHECKSUM       ; checksum
+    dd 0                        ; header_addr
+    dd _multiboot               ; load_addr
+    dd 0                        ; load_end_addr
+    dd _bss_end                 ; bss_end_addr
+    dd _start                   ; entry_addr
+
+
 
 [BITS 32]
 extern multiboot_main
@@ -45,10 +53,7 @@ pdt:
 pt:
     resb 4096
 
-align 16
-global gdt
-gdt:
-    resb 0x100
+_bss_end:
 
 section .data
 align 16
@@ -96,9 +101,3 @@ _longmode_start:
     rep stosq                     ; Clear the screen.
     ;call kernel_main
     hlt
-
-section .kernel64
-align 4096
-global _kernel64
-_kernel64:
-    incbin 'yui-os-kernel-x86-64.elf';

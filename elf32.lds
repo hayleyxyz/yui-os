@@ -1,4 +1,4 @@
-OUTPUT_FORMAT("elf32-i386", "elf32-i386", "elf32-i386")
+OUTPUT_FORMAT(elf32-i386)
 OUTPUT_ARCH(i386)
 
 ENTRY(_start)
@@ -7,34 +7,15 @@ SECTIONS
 {
     . = 0;
 
-    .text BLOCK(4K) : ALIGN(4K)
-    {
+    .text ALIGN(4K) : {
         *(.multiboot)
         *(.text)
-    }
-
-    .text64 BLOCK(4K) : ALIGN(4K)
-    {
-        *(.text64)
-    }
-
-    .rodata BLOCK(4K) : ALIGN(4K)
-    {
         *(.rodata)
-    }
-
-    .data BLOCK(4K) : ALIGN(4K)
-    {
         *(.data)
+        *(.longmode)
     }
 
-    .bss BLOCK(4K) : ALIGN(4K)
-    {
+    .bss ALIGN(4K) : {
         *(.bss)
-    }
-
-    .kernel64 BLOCK(4K) : ALIGN(4K)
-    {
-        *(.kernel64)
     }
 }
