@@ -9,8 +9,7 @@ extern const void pml4t, pdpt, pdt, pt;
 
 volatile uint64_t pml4[NO_OF_PT_ENTRIES] __attribute__((aligned(4096)));
 volatile uint64_t pdp[NO_OF_PT_ENTRIES] __attribute__((aligned(4096))); /* temporary */
-volatile uint64_t pte[NO_OF_PT_ENTRIES] __attribute__((aligned(4096)));
-volatile uint64_t pte2[NO_OF_PT_ENTRIES] __attribute__((aligned(4096)));
+volatile uint64_t pte[NO_OF_PT_ENTRIES * NO_OF_PT_ENTRIES] __attribute__((aligned(4096)));
 
 #if 0
 static void enable_paging() {
@@ -34,21 +33,34 @@ static void enable_paging() {
 }
 #endif
 
-static void enable_paging() {
-    uint32_t i = 0;
-
+static void init_mapping() {
     pml4[0] = (uint32_t)&pdp[0] | PG_PRESENT | PG_RW;
     pdp[0] = (uint32_t)&pte[0] | PG_PRESENT | PG_RW;
-    pdp[3] = (uint32_t)&pte2[0] | PG_PRESENT | PG_RW;
+}
 
-    for(i = 0; i < 2; i++) {
-        pte[i] = (i * PAGE_SIZE_2MB) | PG_PRESENT | PG_RW | PG_PSE;
+static void map_page(uint64_t physical_addr, uint64_t virtual_addr) {
+    uint32_t pd_index = (virtual_addr / PAGE_SIZE_2MB) / NO_OF_PT_ENTRIES;
+    uint32_t pt_index = (pd_index * NO_OF_PT_ENTRIES) + ((virtual_addr / PAGE_SIZE_2MB) % NO_OF_PT_ENTRIES);
+
+    if((pdp[pd_index] & PG_PRESENT) == 0) {
+        pdp[pd_index] = (uint32_t)&pte[pt_index] | PG_PRESENT | PG_RW;
     }
 
-    // Maps physical 0x0 to 0xc0000000
-    for(i = 0; i < 2; i++) {
-        pte2[i] = (i * PAGE_SIZE_2MB) | PG_PRESENT | PG_RW | PG_PSE;
-    }
+    pte[pt_index] = physical_addr | PG_PRESENT | PG_RW | PG_PSE;
+
+    io_iprintf("b 0x%08x\n", pt_index);
+    io_iprintf("b 0x%08x\n", virtual_addr | PG_PRESENT | PG_RW | PG_PSE);
+}
+
+static void enable_paging() {
+    init_mapping();
+
+    // Identity map first 4MB
+    map_page(0, 0);
+    map_page(PAGE_SIZE_2MB, PAGE_SIZE_2MB);
+
+    // Map physical 0x00 to 0xc0000000
+    map_page(0, 0xc0000000);
 
     // Set cr3 to pml4t address
     write_cr3((uint32_t)&pml4[0]);
@@ -107,5 +119,6 @@ void multiboot_main(u32 mb_magic, struct multiboot_info * mb_info) {
     write_cr0(read_cr0() | CR0_PG);
 
     io_iprintf("test: %s\n", (char*)0xc0000000);
+    io_iprintf("test: 0x%x\n", *(uint32_t*)0xc0000000);
 
 }
