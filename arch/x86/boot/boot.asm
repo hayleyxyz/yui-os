@@ -29,8 +29,8 @@ global _start
 _start:
     mov     esp, stack_end
 
-    push    ebx
-    push    eax
+    push    ebx ; mb_info
+    push    eax ; mb magic
     call    multiboot_main
 
     lgdt    [GDT64.Pointer]
