@@ -1,37 +1,21 @@
 #include "boot.h"
 #include "multiboot.h"
-
-extern const void pml4t, pdpt, pdt, pt;
+#include <bootdata.h>
 
 #define NO_OF_PT_ENTRIES        512
 
 #define PAGE_SIZE_2MB           0x200000
 
 volatile uint64_t pml4[NO_OF_PT_ENTRIES] __attribute__((aligned(4096)));
-volatile uint64_t pdp[NO_OF_PT_ENTRIES] __attribute__((aligned(4096))); /* temporary */
+volatile uint64_t pdp[NO_OF_PT_ENTRIES] __attribute__((aligned(4096)));
 volatile uint64_t pte[NO_OF_PT_ENTRIES * NO_OF_PT_ENTRIES] __attribute__((aligned(4096)));
 
-#if 0
-static void enable_paging() {
-    u32 i;
+volatile struct bootdata bootdata;
 
-    // Populate paging tables
-    // TODO: PML5
-    *(u32*)&pml4t = (u32)&pdpt | PG_PRESENT | PG_RW;
-    *(u32*)&pdpt = (u32)&pdt | PG_PRESENT | PG_RW;
-    *(u32*)&pdt = (u32)&pt | PG_PRESENT | PG_RW;
+#define MMAP_ENTRIES 24
+volatile struct mmap mmap[MMAP_ENTRIES];
 
-    for(i = 0; i < 4096 / 8; i++) {
-        ((u32*)&pt)[i * 2] = (i * 0x1000) | PG_PRESENT | PG_RW;
-    }
-
-    // Set cr3 to pml4t address
-    write_cr3(read_cr3() | (u32)&pml4t);
-
-    // Enable Physical Address Extension
-    write_cr4(read_cr4() | CR4_PAE);
-}
-#endif
+extern void bootdata_ptr;
 
 static void init_mapping() {
     pml4[0] = (uint32_t)&pdp[0] | PG_PRESENT | PG_RW;
@@ -47,9 +31,6 @@ static void map_page(uint64_t physical_addr, uint64_t virtual_addr) {
     }
 
     pte[pt_index] = physical_addr | PG_PRESENT | PG_RW | PG_PSE;
-
-    io_iprintf("b 0x%08x\n", pt_index);
-    io_iprintf("b 0x%08x\n", virtual_addr | PG_PRESENT | PG_RW | PG_PSE);
 }
 
 static void enable_paging() {
@@ -70,7 +51,7 @@ static void enable_paging() {
 }
 
 static void enable_longmode() {
-    u32 d, a;
+    uint32_t d, a;
 
     rdmsr(MSR_EFER, &d, &a);
     a |= EFER_LME;
@@ -78,15 +59,15 @@ static void enable_longmode() {
 }
 
 static inline void halt() {
-    asm volatile("cli\nhlt");
+    for(;;) asm volatile("cli\nhlt");
 }
 
-void multiboot_main(u32 mb_magic, struct multiboot_info * mb_info) {
+void multiboot_main(uint32_t mb_magic, struct multiboot_info * mb_info) {
     struct multiboot_mmap_entry * mmap_entry;
     int i = 0;
 
     io_clear();
-    io_puts("yui-os v0.0.1\n");
+    io_puts("yui-os BOOT v0.0.1\n");
 
     if(mb_magic != MULTIBOOT_BOOTLOADER_MAGIC) {
         io_puts("Multiboot magic invalid!");
@@ -98,18 +79,33 @@ void multiboot_main(u32 mb_magic, struct multiboot_info * mb_info) {
         halt();
     }
 
-
-    io_iprintf("mmap_length: 0x%08x\n", mb_info->mmap_length);
-    io_iprintf("mmap_addr: 0x%08x\n", mb_info->mmap_addr);
-
     mmap_entry = (struct multiboot_mmap_entry *)mb_info->mmap_addr;
 
+    bootdata.mmap_count = 0;
+
     for(i = 0; i < mb_info->mmap_length / sizeof(struct multiboot_mmap_entry); i++) {
-        io_iprintf("addr: 0x%08x len: 0x%08x type: 0x%08x - \n", mmap_entry[i].addr, mmap_entry[i].len, mmap_entry[i].type);
+        uint32_t * addr, * len;
+
+        addr = (uint32_t *)&mmap_entry[i].addr;
+        len = (uint32_t *)&mmap_entry[i].len;
+
+        io_iprintf("addr: 0x%08x%08x len: 0x%08x%08x type: 0x%08x\n",
+            addr[1],
+            addr[0],
+            len[1],
+            len[0],
+            mmap_entry[i].type);
+
+        mmap[i].addr = mmap_entry[i].addr;
+        mmap[i].len = mmap_entry[i].len;
+        mmap[i].type = mmap_entry[i].type;
+        bootdata.mmap_count++;
     }
 
+    bootdata.mmap_count = mb_info->mmap_length / sizeof(struct multiboot_mmap_entry);
+    bootdata.magic = BOOTDATA_MAGIC;
 
-    // TOOD: cpuid checks
+    *(uint32_t*)&bootdata_ptr = &bootdata;
 
     enable_paging();
 

@@ -6,7 +6,7 @@
 void io_clear();
 void io_putc(char * ch);
 void io_puts(const char * str);
-void io_putl(s32 num, u32 base);
+void io_putl(int32_t num, uint32_t base);
 int io_iprintf(const char *fmt, ...);
 
 #define CR0_PE     1 << 0
@@ -29,7 +29,7 @@ int io_iprintf(const char *fmt, ...);
 #define PG_PKRU     (1 << 59)
 #define PG_NX       (1 << 63)
 
-static inline void rdmsr(u32 msr, u32 * d, u32 * a) {
+static inline void rdmsr(uint32_t msr, uint32_t * d, uint32_t * a) {
     asm volatile(
         "rdmsr"
         : "=d" (*d), "=a" (*a)
@@ -37,44 +37,44 @@ static inline void rdmsr(u32 msr, u32 * d, u32 * a) {
     );
 }
 
-static inline void wrmsr(u32 msr, u32 d, u32 a) {
+static inline void wrmsr(uint32_t msr, uint32_t d, uint32_t a) {
     asm volatile(
         "wrmsr"
         :: "d" (d), "a" (a), "c" (msr)
     );
 }
 
-static inline u32 read_cr0() {
-    u32 a;
+static inline uint32_t read_cr0() {
+    uint32_t a;
     asm volatile("mov %%cr0, %%eax" : "=a" (a));
     return a;
 }
 
-static inline u32 read_cr3() {
-    u32 a;
+static inline uint32_t read_cr3() {
+    uint32_t a;
     asm volatile("mov %%cr3, %%eax" : "=a" (a));
     return a;
 }
 
-static inline u32 read_cr4() {
-    u32 a;
+static inline uint32_t read_cr4() {
+    uint32_t a;
     asm volatile("mov %%cr4, %%eax" : "=a" (a));
     return a;
 }
 
-static inline void write_cr0(u32 cr0) {
+static inline void write_cr0(uint32_t cr0) {
     asm volatile("mov %%eax, %%cr0" :: "a" (cr0));
 }
 
-static inline void write_cr3(u32 cr3) {
+static inline void write_cr3(uint32_t cr3) {
     asm volatile("mov %%eax, %%cr3" :: "a" (cr3));
 }
 
-static inline void write_cr4(u32 cr4) {
+static inline void write_cr4(uint32_t cr4) {
     asm volatile("mov %%eax, %%cr4" :: "a" (cr4));
 }
 
-static inline void cpuid(u32 id, u32 * a, u32 * b, u32 * c, u32 * d) {
+static inline void cpuid(uint32_t id, uint32_t * a, uint32_t * b, uint32_t * c, uint32_t * d) {
     asm volatile(
         "cpuid"
         : "=a" (*a), "=b" (*b), "=c" (*c), "=d" (*d)

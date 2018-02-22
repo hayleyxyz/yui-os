@@ -44,15 +44,9 @@ stack_start:
     resb STACK_SIZE
 stack_end:
 
-global pml4t, pdpt, pdt, pt
-pml4t:
-    resb 4096
-pdpt:
-    resb 4096
-pdt:
-    resb 4096
-pt:
-    resb 4096
+global bootdata_ptr
+bootdata_ptr:
+    dq 0
 
 section .data
 align 16
@@ -95,4 +89,5 @@ _longmode_start:
     mov ss, ax
     mov rdx, 0x1000
     mov rdx, [rdx]
-    jmp rdx
+    mov rdi, [bootdata_ptr]
+    call rdx
