@@ -1,5 +1,4 @@
 #include <types.h>
-#include <printf.h>
 
 volatile uint16_t * base_text_buffer = (volatile uint16_t *)0xB8000;
 
@@ -43,18 +42,4 @@ void console_clear() {
             *copy++ = 0;
         }
     }
-}
-
-int console_printf(const char *fmt, ...) {
-    int ret;
-    char buf[120];
-
-    va_list va;
-    va_start(va, fmt);
-    ret = mini_vsnprintf(buf, sizeof(buf), fmt, va);
-    va_end(va);
-
-    console_puts(buf);
-
-    return ret;
 }

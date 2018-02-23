@@ -1,8 +1,7 @@
 MODULE_SRCS := \
 	boot/boot.asm \
-	boot/io.c \
-	boot/main.c \
-	boot/mini-printf.c
+	boot/console.c \
+	boot/main.c
 
 TARGET_BOOT := yui-os-boot.elf
 MODULE_TARGET := $(TARGET_BOOT)

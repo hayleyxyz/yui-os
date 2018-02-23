@@ -7,7 +7,7 @@ MULTIBOOT_CHECKSUM      equ -(MULTIBOOT_HEADER_MAGIC + MULTIBOOT_HEADER_FLAGS)
 
 STACK_SIZE              equ 4096
 
-extern multiboot_main, _bss_end
+extern multiboot_main, _bss_end, bootdata_ptr
 
 section .multiboot
 align 4
@@ -35,18 +35,13 @@ _start:
 
     lgdt    [GDT64.Pointer]
     jmp     GDT64.Code:_longmode_start
-
-    hlt
+    ud2
 
 section .bss
 align 4096
 stack_start:
     resb STACK_SIZE
 stack_end:
-
-global bootdata_ptr
-bootdata_ptr:
-    dq 0
 
 section .data
 align 16
@@ -91,3 +86,5 @@ _longmode_start:
     mov rdx, [rdx]
     mov rdi, [bootdata_ptr]
     call rdx
+
+    hlt

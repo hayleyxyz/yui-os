@@ -16,6 +16,7 @@ typedef __INTMAX_TYPE__ intmax_t;
 typedef __UINTMAX_TYPE__ uintmax_t;
 typedef __UINTPTR_TYPE__ uintptr_t;
 typedef __PTRDIFF_TYPE__ ptrdiff_t;
+typedef __UINT64_TYPE__ uintptr64_t;
 
 typedef __SIZE_TYPE__ size_t;
 
@@ -26,6 +27,7 @@ typedef int bool;
 enum { false, true };
 
 #define NULL 0
+#define nullptr 0
 
 typedef __builtin_va_list va_list;
 

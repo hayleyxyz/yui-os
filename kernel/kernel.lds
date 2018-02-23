@@ -2,7 +2,7 @@ ENTRY(kernel_main)
 
 SECTIONS
 {
-    . = 0xc0001000;
+    . = 0x00001000;
 
     .text ALIGN(4096) : {
         QUAD(kernel_main)

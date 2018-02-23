@@ -15,7 +15,7 @@ volatile struct bootdata bootdata;
 #define MMAP_ENTRIES 24
 volatile struct mmap mmap[MMAP_ENTRIES];
 
-extern void bootdata_ptr;
+volatile uintptr64_t bootdata_ptr;
 
 static void init_mapping() {
     pml4[0] = (uint32_t)&pdp[0] | PG_PRESENT | PG_RW;
@@ -41,9 +41,9 @@ static void enable_paging() {
     map_page(PAGE_SIZE_2MB, PAGE_SIZE_2MB);
 
     // Map physical 0x00 to 0xc0000000
-    map_page(0, 0xc0000000);
+    //map_page(0, 0xc0000000);
 
-    // Set cr3 to pml4t address
+    // Set cr3 to pml4 address
     write_cr3((uint32_t)&pml4[0]);
 
     // Enable Physical Address Extension
@@ -58,54 +58,47 @@ static void enable_longmode() {
     wrmsr(MSR_EFER, d, a);
 }
 
-static inline void halt() {
-    for(;;) asm volatile("cli\nhlt");
-}
-
-void multiboot_main(uint32_t mb_magic, struct multiboot_info * mb_info) {
-    struct multiboot_mmap_entry * mmap_entry;
-    int i = 0;
-
-    io_clear();
-    io_puts("yui-os BOOT v0.0.1\n");
-
-    if(mb_magic != MULTIBOOT_BOOTLOADER_MAGIC) {
-        io_puts("Multiboot magic invalid!");
-        halt();
-    }
-
-    if(mb_info->flags & MULTIBOOT_INFO_MEM_MAP == 0) {
-        io_puts("No memory map provided by the bootloader!");
-        halt();
-    }
-
-    mmap_entry = (struct multiboot_mmap_entry *)mb_info->mmap_addr;
+static void setup_bootdata(struct multiboot_info * mb_info) {
+    uint32_t i = 0;
+    struct multiboot_mmap_entry * mmap_entry = (struct multiboot_mmap_entry *)mb_info->mmap_addr;
 
     bootdata.mmap_count = 0;
 
     for(i = 0; i < mb_info->mmap_length / sizeof(struct multiboot_mmap_entry); i++) {
-        uint32_t * addr, * len;
-
-        addr = (uint32_t *)&mmap_entry[i].addr;
-        len = (uint32_t *)&mmap_entry[i].len;
-
-        io_iprintf("addr: 0x%08x%08x len: 0x%08x%08x type: 0x%08x\n",
-            addr[1],
-            addr[0],
-            len[1],
-            len[0],
-            mmap_entry[i].type);
-
         mmap[i].addr = mmap_entry[i].addr;
         mmap[i].len = mmap_entry[i].len;
         mmap[i].type = mmap_entry[i].type;
         bootdata.mmap_count++;
     }
 
-    bootdata.mmap_count = mb_info->mmap_length / sizeof(struct multiboot_mmap_entry);
+    bootdata.mmap = EXTEND_POINTER(&mmap);
     bootdata.magic = BOOTDATA_MAGIC;
+    bootdata.pml4 = EXTEND_POINTER(&pml4);
+    bootdata.pdp = EXTEND_POINTER(&pdp);
+    bootdata.pte = EXTEND_POINTER(&pte);
 
-    *(uint32_t*)&bootdata_ptr = &bootdata;
+    bootdata_ptr = (uintptr64_t)((uintptr_t)&bootdata);
+}
+
+/**
+ * TODO: remap to 0x00000500 or 0x00007E00
+ */
+
+void multiboot_main(uint32_t mb_magic, struct multiboot_info * mb_info) {
+    console_clear();
+    console_puts("yui-os BOOT v0.0.1\n");
+
+    if(mb_magic != MULTIBOOT_BOOTLOADER_MAGIC) {
+        console_puts("Multiboot magic invalid!");
+        halt();
+    }
+
+    if((mb_info->flags & MULTIBOOT_INFO_MEM_MAP) == 0) {
+        console_puts("No memory map provided by the bootloader!");
+        halt();
+    }
+
+    setup_bootdata(mb_info);
 
     enable_paging();
 
@@ -114,7 +107,6 @@ void multiboot_main(uint32_t mb_magic, struct multiboot_info * mb_info) {
     // Enable paging in longmode
     write_cr0(read_cr0() | CR0_PG);
 
-    io_iprintf("test: %s\n", (char*)0xc0000000);
-    io_iprintf("test: 0x%x\n", *(uint32_t*)0xc0000000);
-
+    // Return to boot code
+    return;
 }

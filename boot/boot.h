@@ -1,13 +1,10 @@
-#ifndef _BOOT_H
-#define _BOOT_H
+#pragma once
 
 #include <types.h>
 
-void io_clear();
-void io_putc(char * ch);
-void io_puts(const char * str);
-void io_putl(int32_t num, uint32_t base);
-int io_iprintf(const char *fmt, ...);
+void console_clear();
+void console_putc(char * ch);
+void console_puts(const char * str);
 
 #define CR0_PE     1 << 0
 #define CR0_PG     1 << 31
@@ -44,35 +41,23 @@ static inline void wrmsr(uint32_t msr, uint32_t d, uint32_t a) {
     );
 }
 
-static inline uint32_t read_cr0() {
-    uint32_t a;
-    asm volatile("mov %%cr0, %%eax" : "=a" (a));
-    return a;
-}
+#define WRITE_CRX(x) \
+    static inline void write_cr##x(uint32_t cr) { \
+        asm volatile("mov %%eax, %%cr"#x :: "a" (cr)); \
+    }
 
-static inline uint32_t read_cr3() {
-    uint32_t a;
-    asm volatile("mov %%cr3, %%eax" : "=a" (a));
-    return a;
-}
+#define READ_CRX(x) \
+    static inline uint32_t read_cr##x() { \
+        uint32_t a; \
+        asm volatile("mov %%cr"#x", %%eax" : "=a" (a)); \
+        return a; \
+    }
 
-static inline uint32_t read_cr4() {
-    uint32_t a;
-    asm volatile("mov %%cr4, %%eax" : "=a" (a));
-    return a;
-}
-
-static inline void write_cr0(uint32_t cr0) {
-    asm volatile("mov %%eax, %%cr0" :: "a" (cr0));
-}
-
-static inline void write_cr3(uint32_t cr3) {
-    asm volatile("mov %%eax, %%cr3" :: "a" (cr3));
-}
-
-static inline void write_cr4(uint32_t cr4) {
-    asm volatile("mov %%eax, %%cr4" :: "a" (cr4));
-}
+READ_CRX(0)
+WRITE_CRX(0)
+READ_CRX(4)
+WRITE_CRX(4)
+WRITE_CRX(3)
 
 static inline void cpuid(uint32_t id, uint32_t * a, uint32_t * b, uint32_t * c, uint32_t * d) {
     asm volatile(
@@ -83,4 +68,6 @@ static inline void cpuid(uint32_t id, uint32_t * a, uint32_t * b, uint32_t * c, 
 
 }
 
-#endif
+static inline void halt() {
+    for(;;) asm volatile("hlt");
+}
