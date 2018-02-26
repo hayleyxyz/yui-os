@@ -5,8 +5,8 @@ MODULE_SRCS := \
 
 TARGET_BOOT := yui-os-boot.elf
 MODULE_TARGET := $(TARGET_BOOT)
-MODULE_CC := i686-elf-$(CC)
-MODULE_LD := i686-elf-$(LD)
+MODULE_CC := i386-elf-$(CC)
+MODULE_LD := i386-elf-$(LD)
 
 MODULE_LDFLAGS := --script boot/boot.lds
 

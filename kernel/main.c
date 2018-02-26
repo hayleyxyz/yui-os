@@ -2,184 +2,62 @@
 #include <bootdata.h>
 #include <console.h>
 #include <cpu.h>
+#include <memory.h>
 
-volatile uint64_t * pml4;
-volatile uint64_t * pdp;
-volatile uint64_t * pte;
+struct idt_bits {
+    uint16_t     ist : 3,
+            zero    : 5,
+            type    : 5,
+            dpl : 2,
+            p   : 1;
+} __attribute__((packed));
 
-#define NO_OF_PT_ENTRIES        512
-#define PAGE_SIZE_2MB           0x200000
-#define PG_PRESENT  (1 << 0)
-#define PG_RW       (1 << 1)
-#define PG_PSE      (1 << 7)
+struct idt_gate {
+    uint16_t     offset_low;
+    uint16_t     segment;
+    struct idt_bits bits;
+    uint16_t     offset_middle;
+    uint32_t     offset_high;
+    uint32_t     reserved;
+} __attribute__((packed));
 
-#define ALIGN_UP(addr, align) \
-    ((addr + (align - 1)) & -align)
-
-static void * map_page(uint64_t physical_addr, uint64_t virtual_addr) {
-    uint64_t pd_index = (virtual_addr / PAGE_SIZE_2MB) / NO_OF_PT_ENTRIES;
-    uint64_t pt_index = (pd_index * NO_OF_PT_ENTRIES) + ((virtual_addr / PAGE_SIZE_2MB) % NO_OF_PT_ENTRIES);
-
-    if((pdp[pd_index] & PG_PRESENT) == 0) {
-        pdp[pd_index] = (uint64_t)&pte[pt_index] | PG_PRESENT | PG_RW;
-    }
-
-    pte[pt_index] = physical_addr | PG_PRESENT | PG_RW | PG_PSE;
-
-    return (void *)virtual_addr;
-}
-
-struct memory_block {
-    uintptr_t address;
-    uint64_t length;
-    bool available;
-    struct memory_block * next;
-    struct memory_block * prev;
-    uint32_t magic;
+struct idt {
+    struct idt_gate gates[256];
 };
 
-#define MEMORY_BLOCK_MAGIC 0xabd0dbca
+struct idtr {
+    uint16_t limit;
+    uintptr_t address;
+} __attribute__((packed));
 
-struct memory_block * head_memory_block;
+struct idt idt;
 
-static inline void dump_blocks() {
-    struct memory_block * block = head_memory_block;
+struct idtr idtr = {
+    .limit = sizeof(idt) - 1,
+    .address = (uintptr_t)&idt
+};
 
-    console_puts("\nDUMP MEM. BLOCKS\n");
-
-    while(block) {
-        printk("addr: 0x%08x%08x len: 0x%08x%08x available: %c\n",
-                block->address >> 32, block->address & 0xffffffff, block->length >> 32,
-                block->length & 0xffffffff, block->available ? 'y' : 'n');
-
-        block = block->next;
-    }
+static inline void lidt(uintptr_t base) {
+    __asm volatile("lidt (%0)" :: "r"(base) : "memory");
 }
 
-static struct memory_block * memory_block_new(uintptr_t address, uint64_t length, bool available) {
-    struct memory_block * block = head_memory_block;
-
-    while(block->magic == MEMORY_BLOCK_MAGIC) {
-        block++;
-    }
-
-    block->magic = MEMORY_BLOCK_MAGIC;
-    block->address = address;
-    block->length = length;
-    block->available = available;
-
-    return block;
+void _irq_handler() {
+    printk("_irq_handlerz\n");
 }
 
-static bool memory_split_block(uintptr_t address, uint64_t length) {
-    struct memory_block * block = head_memory_block,
-        * alloc_block,
-        * remainder;
-
-    while(block) {
-        if(block->address <= address && (block->address + block->length) > (address + length)) {
-            remainder = memory_block_new(
-                            (address + length),
-                            (block->address + block->length) - (address + length),
-                            true);
-
-            alloc_block = memory_block_new(address, length, false);
-
-            if(block->address < address) {
-                // block | alloc | remainder
-                block->length = address - block->address;
-                alloc_block->prev = block;
-                alloc_block->next = remainder;
-                remainder->prev = alloc_block;
-
-                if(!block->next) {
-                    block->next = alloc_block;
-                }
-                else {
-                    remainder->next = block->next;
-                    remainder->next->prev = remainder;
-                }
-            }
-            else if(block->address == address) {
-                // alloc | remainder
-                block->length = (block->address + block->length) - (address + length);
-                block->address = (address + length);
-
-
-                alloc_block->prev = block->prev;
-                alloc_block->prev->next = alloc_block;
-                alloc_block->next = block;
-                block->prev = alloc_block;
-
-                if(head_memory_block == block) {
-                    head_memory_block = alloc_block;
-                }
-            }
-
-            return true;
-        }
-
-        block = block->next;
-    }
-
-    return false;
-}
-
-static inline uint32_t memory_page_size() {
-    return PAGE_SIZE_2MB;
-}
-
-static void * alloc_page() {
-    struct memory_block * block = head_memory_block;
-    uintptr_t aligned = 0;
-    uint64_t length = memory_page_size();
-
-    while(block) {
-        aligned = ALIGN_UP(block->address, length);
-
-        if(block->available && (aligned - block->address) - block->length >= length) {
-            printk("aligned: 0x%08x %08x\naddress: 0x%08x %08x\n", aligned >> 32, aligned, block->address >> 32, block->address);
-            memory_split_block(aligned, length);
-            return map_page(aligned, aligned);
-        }
-
-        block = block->next;
-    }
-
-    return nullptr;
-}
-
-static void init_memory(struct bootdata * bootdata) {
-    pml4 = (uint64_t *)bootdata->pml4;
-    pdp = (uint64_t *)bootdata->pdp;
-    pte = (uint64_t *)bootdata->pte;
-
-    struct mmap * mmap = (struct mmap *)bootdata->mmap,
-        * largest_block = nullptr;
-    for(uint32_t i = 0; i < bootdata->mmap_count; i++) {
-        if(mmap[i].type == MMAP_MEMORY_AVAILABLE && (!largest_block || largest_block->len < mmap[i].len)) {
-            largest_block = &mmap[i];
-        }
-    }
-
-    // Manually allocate a page at the start of the available block of mem, and use it as backing for the memory_block structs
-    uint64_t page_size = memory_page_size();
-    uintptr_t addr = ALIGN_UP(largest_block->addr, page_size);
-    void * allocated = map_page(addr, addr);
-    head_memory_block = (struct memory_block *)allocated;
-
-    // Fill out the first block, which details all free memory in the system
-    memory_block_new(largest_block->addr, largest_block->len, true);
-
-    // Mark the block we just allocated
-    memory_split_block(addr, page_size);
-
-    // printk("alloc_page: 0x%08x\n", alloc_page());
-    // printk("alloc_page: 0x%08x\n", alloc_page());
-    // printk("alloc_page: 0x%08x\n", alloc_page());
-    // printk("alloc_page: 0x%08x\n", alloc_page());
-
-    // dump_blocks();
+static inline void pack_gate(struct idt_gate *gate, unsigned type, unsigned long func,
+                 unsigned dpl, unsigned ist, unsigned seg)
+{
+    gate->offset_low    = (uint16_t) func;
+    gate->bits.p        = 1;
+    gate->bits.dpl      = dpl;
+    gate->bits.zero     = 0;
+    gate->bits.type     = type;
+    gate->offset_middle = (uint16_t) (func >> 16);
+    gate->segment       = 0x08;
+    gate->bits.ist      = ist;
+    gate->reserved      = 0;
+    gate->offset_high   = (uint32_t) (func >> 32);
 }
 
 void kernel_main(struct bootdata * bootdata) {
@@ -191,17 +69,46 @@ void kernel_main(struct bootdata * bootdata) {
         halt();
     }
 
-    struct mmap * mmap = (struct mmap *)bootdata->mmap;
-    for(uint32_t i = 0; i < bootdata->mmap_count; i++) {
-        #if 0
-        printk("addr: 0x%08x%08x len: 0x%08x%08x type: 0x%08x\n",
-            mmap[i].addr >> 32,
-            mmap[i].addr & 0xffffffff,
-            mmap[i].len >> 32,
-            mmap[i].len & 0xffffffff,
-            mmap[i].type);
-        #endif
+    init_memory(bootdata);
+
+    for(uint32_t i = 0; i < 256; i++) {
+        idt.gates[i].offset_low = 0;
+        idt.gates[i].segment = 0;
+        idt.gates[i].bits.ist = 0;
+        idt.gates[i].bits.zero = 0;
+        idt.gates[i].bits.type = 0;
+        idt.gates[i].bits.dpl = 0;
+        idt.gates[i].bits.p = 0;
+        idt.gates[i].offset_middle = 0;
+        idt.gates[i].offset_high = 0;
+        idt.gates[i].reserved = 0;
     }
 
-    init_memory(bootdata);
+    uint32_t selector = 0x08;
+
+    uintptr_t offset = (uintptr_t)_irq_handler;
+
+    idt.gates[0].offset_low = offset;
+    idt.gates[0].segment = selector;
+    idt.gates[0].bits.ist = 0;
+    idt.gates[0].bits.p = 1;
+    idt.gates[0].bits.dpl = 0; // ring 0
+    idt.gates[0].bits.zero = 0;
+    idt.gates[0].bits.type = 0xE; // IDT_INTERRUPT_GATE64
+    idt.gates[0].offset_middle = (uint16_t)(offset >> 16);
+    idt.gates[0].offset_high = (uint16_t)(offset >> 32);
+    idt.gates[0].reserved = 0;
+
+    lidt((uintptr_t)&idtr);
+
+    // uintptr_t addr = alloc_page();
+    // printk("alloc_page: 0x%08x%08x\n", addr >> 32, addr);
+    // addr = alloc_page();
+    // printk("alloc_page: 0x%08x%08x\n", addr >> 32, addr);
+
+    printk("before div by zero\n");
+
+    volatile int x = 0/0;
+
+    printk("after div by zero\n");
 }
