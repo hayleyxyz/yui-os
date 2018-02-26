@@ -41,23 +41,10 @@ static inline void lidt(uintptr_t base) {
     __asm volatile("lidt (%0)" :: "r"(base) : "memory");
 }
 
-void _irq_handler() {
-    printk("_irq_handlerz\n");
-}
+void _irq_handler(void * s) {
+    printk("_irq_handler\n");
 
-static inline void pack_gate(struct idt_gate *gate, unsigned type, unsigned long func,
-                 unsigned dpl, unsigned ist, unsigned seg)
-{
-    gate->offset_low    = (uint16_t) func;
-    gate->bits.p        = 1;
-    gate->bits.dpl      = dpl;
-    gate->bits.zero     = 0;
-    gate->bits.type     = type;
-    gate->offset_middle = (uint16_t) (func >> 16);
-    gate->segment       = 0x08;
-    gate->bits.ist      = ist;
-    gate->reserved      = 0;
-    gate->offset_high   = (uint32_t) (func >> 32);
+    halt();
 }
 
 void kernel_main(struct bootdata * bootdata) {
@@ -71,33 +58,21 @@ void kernel_main(struct bootdata * bootdata) {
 
     init_memory(bootdata);
 
-    for(uint32_t i = 0; i < 256; i++) {
-        idt.gates[i].offset_low = 0;
-        idt.gates[i].segment = 0;
-        idt.gates[i].bits.ist = 0;
-        idt.gates[i].bits.zero = 0;
-        idt.gates[i].bits.type = 0;
-        idt.gates[i].bits.dpl = 0;
-        idt.gates[i].bits.p = 0;
-        idt.gates[i].offset_middle = 0;
-        idt.gates[i].offset_high = 0;
-        idt.gates[i].reserved = 0;
-    }
-
-    uint32_t selector = 0x08;
-
     uintptr_t offset = (uintptr_t)_irq_handler;
 
-    idt.gates[0].offset_low = offset;
-    idt.gates[0].segment = selector;
-    idt.gates[0].bits.ist = 0;
-    idt.gates[0].bits.p = 1;
-    idt.gates[0].bits.dpl = 0; // ring 0
-    idt.gates[0].bits.zero = 0;
-    idt.gates[0].bits.type = 0xE; // IDT_INTERRUPT_GATE64
-    idt.gates[0].offset_middle = (uint16_t)(offset >> 16);
-    idt.gates[0].offset_high = (uint16_t)(offset >> 32);
-    idt.gates[0].reserved = 0;
+    for(uint32_t i = 0; i < 256; i++) {
+        idt.gates[i].offset_low = offset;
+        idt.gates[i].segment = 0x08; // GDT64.Code
+        idt.gates[i].bits.ist = 0; // Interrupt Stack Table, not used
+        idt.gates[i].bits.p = 1; // present
+        idt.gates[i].bits.dpl = 0; // ring 0
+        idt.gates[i].bits.zero = 0;
+        idt.gates[i].bits.type = 0xE; // IDT_INTERRUPT_GATE64
+        idt.gates[i].offset_middle = (uint16_t)(offset >> 16);
+        idt.gates[i].offset_high = (uint16_t)(offset >> 32);
+        idt.gates[i].reserved = 0;
+    }
+    
 
     lidt((uintptr_t)&idtr);
 
@@ -111,4 +86,8 @@ void kernel_main(struct bootdata * bootdata) {
     volatile int x = 0/0;
 
     printk("after div by zero\n");
+
+    __asm volatile("int $0x30");
+
+    *(uint64_t*)0xfe1000000 = 0x00;
 }
