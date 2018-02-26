@@ -2,7 +2,6 @@
 #include <bootdata.h>
 #include <console.h>
 #include <cpu.h>
-#include <debug.h>
 
 volatile uint64_t * pml4;
 volatile uint64_t * pdp;
@@ -57,7 +56,7 @@ static inline void dump_blocks() {
     }
 }
 
-static struct memory_block * memory_block_new() {
+static struct memory_block * memory_block_new(uintptr_t address, uint64_t length, bool available) {
     struct memory_block * block = head_memory_block;
 
     while(block->magic == MEMORY_BLOCK_MAGIC) {
@@ -65,34 +64,26 @@ static struct memory_block * memory_block_new() {
     }
 
     block->magic = MEMORY_BLOCK_MAGIC;
+    block->address = address;
+    block->length = length;
+    block->available = available;
 
     return block;
 }
 
-static inline void link_memory_blocks(struct memory_block * first, struct memory_block * second) {
-    first->next = second;
-    second->prev = first;
-}
-
-static void memory_split_block(uintptr_t address, uint64_t length) {
+static bool memory_split_block(uintptr_t address, uint64_t length) {
     struct memory_block * block = head_memory_block,
         * alloc_block,
         * remainder;
 
-    printk("memory_split_block(0x%08x%08x, 0x%08x%08x)\n",
-        address >> 32, address, length >> 32, length);
-
     while(block) {
         if(block->address <= address && (block->address + block->length) > (address + length)) {
-            remainder = memory_block_new();
-            remainder->address = (address + length);
-            remainder->length = (block->address + block->length) - remainder->address;
-            remainder->available = true;
+            remainder = memory_block_new(
+                            (address + length),
+                            (block->address + block->length) - (address + length),
+                            true);
 
-            alloc_block = memory_block_new();
-            alloc_block->address = address;
-            alloc_block->length = length;
-            alloc_block->available = false;
+            alloc_block = memory_block_new(address, length, false);
 
             if(block->address < address) {
                 // block | alloc | remainder
@@ -105,7 +96,8 @@ static void memory_split_block(uintptr_t address, uint64_t length) {
                     block->next = alloc_block;
                 }
                 else {
-                    not_implemented();
+                    remainder->next = block->next;
+                    remainder->next->prev = remainder;
                 }
             }
             else if(block->address == address) {
@@ -119,13 +111,42 @@ static void memory_split_block(uintptr_t address, uint64_t length) {
                 alloc_block->next = block;
                 block->prev = alloc_block;
 
+                if(head_memory_block == block) {
+                    head_memory_block = alloc_block;
+                }
             }
 
-            break;
+            return true;
         }
 
         block = block->next;
     }
+
+    return false;
+}
+
+static inline uint32_t memory_page_size() {
+    return PAGE_SIZE_2MB;
+}
+
+static void * alloc_page() {
+    struct memory_block * block = head_memory_block;
+    uintptr_t aligned = 0;
+    uint64_t length = memory_page_size();
+
+    while(block) {
+        aligned = ALIGN_UP(block->address, length);
+
+        if(block->available && (aligned - block->address) - block->length >= length) {
+            printk("aligned: 0x%08x %08x\naddress: 0x%08x %08x\n", aligned >> 32, aligned, block->address >> 32, block->address);
+            memory_split_block(aligned, length);
+            return map_page(aligned, aligned);
+        }
+
+        block = block->next;
+    }
+
+    return nullptr;
 }
 
 static void init_memory(struct bootdata * bootdata) {
@@ -141,22 +162,24 @@ static void init_memory(struct bootdata * bootdata) {
         }
     }
 
-    uintptr_t addr = ALIGN_UP(largest_block->addr, PAGE_SIZE_2MB);
+    // Manually allocate a page at the start of the available block of mem, and use it as backing for the memory_block structs
+    uint64_t page_size = memory_page_size();
+    uintptr_t addr = ALIGN_UP(largest_block->addr, page_size);
     void * allocated = map_page(addr, addr);
     head_memory_block = (struct memory_block *)allocated;
 
-    head_memory_block->address = largest_block->addr;
-    head_memory_block->length = largest_block->len;
-    head_memory_block->available = true;
-    head_memory_block->next = nullptr;
-    head_memory_block->magic = MEMORY_BLOCK_MAGIC;
+    // Fill out the first block, which details all free memory in the system
+    memory_block_new(largest_block->addr, largest_block->len, true);
 
     // Mark the block we just allocated
-    memory_split_block(addr, PAGE_SIZE_2MB);
-    memory_split_block(0x400000, PAGE_SIZE_2MB);
-    memory_split_block(0x23400000, PAGE_SIZE_2MB);
+    memory_split_block(addr, page_size);
 
-    dump_blocks();
+    // printk("alloc_page: 0x%08x\n", alloc_page());
+    // printk("alloc_page: 0x%08x\n", alloc_page());
+    // printk("alloc_page: 0x%08x\n", alloc_page());
+    // printk("alloc_page: 0x%08x\n", alloc_page());
+
+    // dump_blocks();
 }
 
 void kernel_main(struct bootdata * bootdata) {
