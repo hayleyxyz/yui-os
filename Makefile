@@ -15,4 +15,4 @@ $(OS_TARGET):: $(TARGETS)
 
 
 clean:
-	rm -rf $(ALL_OBJS) $(TARGETS) $(OS_TARGET) $(TARGET_KERNEL:.elf=)*
+	rm -rf $(ALL_OBJS) $(TARGETS) $(OS_TARGET) $(TARGET_KERNEL:.elf=)* $(ALL_OBJS:.o=.d)
