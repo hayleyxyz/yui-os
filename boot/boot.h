@@ -71,3 +71,14 @@ static inline void cpuid(uint32_t id, uint32_t * a, uint32_t * b, uint32_t * c, 
 static inline void halt() {
     for(;;) asm volatile("hlt");
 }
+
+
+static inline void * memset(void *s, int c, size_t count)
+{
+    char *xs = (char *) s;
+    
+    for ( ; count > 0; count-- )
+        *xs++ = c;
+
+    return s;
+}

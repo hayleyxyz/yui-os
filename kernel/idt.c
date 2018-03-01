@@ -65,7 +65,24 @@ void exception_handler(struct x86_64_iframe * frame) {
         message = "Unknown Interrupt";
     }
 
-    printk("%d - %s 0x%x\nRIP: 0x%016llx\n", frame->vector, message, frame->err_code, frame->ip);
+    printk("%d - %s 0x%x\nrip: 0x%016llx\n",
+        frame->vector, message, frame->err_code, frame->ip);
+
+    printk("rax: 0x%016llx rcx: 0x%016llx rdx: 0x%016llx\n"
+        "rbx: 0x%016llx rbp: 0x%016llx rsi: 0x%016llx\n"
+        "rdi: 0x%016llx",
+        frame->rax, frame->rcx, frame->rdx, frame->rbx, frame->rbp, frame->rsi, frame->rdi);
 
     halt();
 }
+
+#if 0
+struct x86_64_iframe {
+    uint64_t rdi, rsi, rbp, rbx, rdx, rcx, rax;         // pushed by common handler
+    uint64_t r8, r9, r10, r11, r12, r13, r14, r15;      // pushed by common handler
+    uint64_t vector;                                    // pushed by stub
+    uint64_t err_code;                                  // pushed by interrupt or stub
+    uint64_t ip, cs, flags;                             // pushed by interrupt
+    uint64_t user_sp, user_ss;                          // pushed by interrupt
+};
+#endif

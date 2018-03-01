@@ -3,10 +3,6 @@ extern exception_handler
 [BITS 64]
 segment code
 
-global _simple_handler
-_simple_handler:
-    iretq
-
 %macro _interrupt_stub_macro 1
 global _interrupt_stub%1
 _interrupt_stub%1:

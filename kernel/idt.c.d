@@ -1,0 +1,10 @@
+kernel/idt.c.o: kernel/idt.c include/idt.h include/types.h \
+ include/console.h include/cpu.h
+
+include/idt.h:
+
+include/types.h:
+
+include/console.h:
+
+include/cpu.h:

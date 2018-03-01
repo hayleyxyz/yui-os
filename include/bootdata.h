@@ -25,6 +25,8 @@ struct bootdata {
     uintptr64_t pml4;
     uintptr64_t pdp;
     uintptr64_t pte;
+    uintptr64_t gdt;
+    uintptr64_t gdt_tss;
 } __attribute__((packed));
 
 #define EXTEND_POINTER(ptr) ((uintptr64_t)((uintptr_t)ptr))

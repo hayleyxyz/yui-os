@@ -43,6 +43,8 @@ stack_start:
     resb STACK_SIZE
 stack_end:
 
+
+global GDT64, GDT64_TSS
 section .data
 align 16
 GDT64:                           ; Global Descriptor Table (64-bit).
@@ -54,6 +56,7 @@ GDT64:                           ; Global Descriptor Table (64-bit).
     db 0                         ; Granularity.
     db 0                         ; Base (high).
     .Code: equ $ - GDT64         ; The code descriptor.
+    GDT64_Code: equ GDT64.Code
     dw 0                         ; Limit (low).
     dw 0                         ; Base (low).
     db 0                         ; Base (middle)
@@ -61,6 +64,7 @@ GDT64:                           ; Global Descriptor Table (64-bit).
     db 0b10101111                ; G(1) D(0) L(1) AVL(0) limit 19:16
     db 0                         ; Base (high).
     .Data: equ $ - GDT64         ; The data descriptor.
+    GDT64_Data: equ GDT64.Data
     dw 0                         ; Limit (low).
     dw 0                         ; Base (low).
     db 0                         ; Base (middle)
@@ -82,6 +86,7 @@ GDT64:                           ; Global Descriptor Table (64-bit).
     db 0b11001111                ; G(1) B(1) 0 0 limit 19:16
     db 0                         ; Base (high).
     .TSS: equ $ - GDT64
+    GDT64_TSS: equ GDT64.TSS
     dw 0                ; limit 15:00
     dw 0                ; base 15:00
     db  0                ; base 23:16

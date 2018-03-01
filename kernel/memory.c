@@ -1,25 +1,12 @@
 #include <memory.h>
-
+#include <console.h>
 volatile uint64_t * pml4;
 volatile uint64_t * pdp;
 volatile uint64_t * pte;
 
 struct memory_block * head_memory_block;
 
-static void * map_page(uint64_t physical_addr, uint64_t virtual_addr) {
-    uint64_t pd_index = (virtual_addr / PAGE_SIZE_2MB) / NO_OF_PT_ENTRIES;
-    uint64_t pt_index = (pd_index * NO_OF_PT_ENTRIES) + ((virtual_addr / PAGE_SIZE_2MB) % NO_OF_PT_ENTRIES);
 
-    if((pdp[pd_index] & PG_PRESENT) == 0) {
-        pdp[pd_index] = (uint64_t)&pte[pt_index] | PG_PRESENT | PG_RW;
-    }
-
-    pte[pt_index] = physical_addr | PG_PRESENT | PG_RW | PG_PSE;
-
-    return (void *)virtual_addr;
-}
-
-#if 0
 static inline void dump_blocks() {
     struct memory_block * block = head_memory_block;
 
@@ -33,7 +20,28 @@ static inline void dump_blocks() {
         block = block->next;
     }
 }
-#endif
+
+static void * map_page(uint64_t physical_addr, uint64_t virtual_addr) {
+    uint64_t pd_index = (virtual_addr / PAGE_SIZE_2MB) / NO_OF_PT_ENTRIES;
+    uint64_t pt_index = (pd_index * NO_OF_PT_ENTRIES) + ((virtual_addr / PAGE_SIZE_2MB) % NO_OF_PT_ENTRIES);
+
+    printk("pd_index: 0x%016llx\n", pd_index);
+    printk("pt_index: 0x%016llx\n", pt_index);
+    printk("physical_addr: 0x%016llx\n", physical_addr);
+    printk("virtual_addr: 0x%016llx\n", virtual_addr);
+
+    dump_blocks();
+
+    if((pdp[pd_index] & PG_PRESENT) == 0) {
+        
+        pdp[pd_index] = (uint64_t)&pte[pt_index] | PG_PRESENT | PG_RW;
+    }
+
+    pte[pt_index] = physical_addr | PG_PRESENT | PG_RW | PG_PSE;
+
+    return (void *)virtual_addr;
+}
+
 
 static struct memory_block * memory_block_new(uintptr_t address, uint64_t length, bool available) {
     struct memory_block * block = head_memory_block;
@@ -134,11 +142,18 @@ void init_memory(struct bootdata * bootdata) {
         if(mmap[i].type == MMAP_MEMORY_AVAILABLE && (!largest_block || largest_block->len < mmap[i].len)) {
             largest_block = &mmap[i];
         }
+
+        printk("addr: 0x%016llx length: 0x%016llx\n", mmap[i].addr, mmap[i].len);
+    }
+
+    if(!largest_block) {
+        halt();
     }
 
     // Manually allocate a page at the start of the available block of mem, and use it as backing for the memory_block structs
     uint64_t page_size = memory_page_size();
     uintptr_t addr = ALIGN_UP(largest_block->addr, page_size);
+    printk("addr: 0x%016llx\n", addr);
     void * allocated = map_page(addr, addr);
     head_memory_block = (struct memory_block *)allocated;
 

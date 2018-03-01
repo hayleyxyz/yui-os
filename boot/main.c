@@ -17,6 +17,8 @@ volatile struct mmap mmap[MMAP_ENTRIES];
 
 volatile uintptr64_t bootdata_ptr;
 
+extern uintptr_t GDT64, GDT64_TSS;
+
 static void init_mapping() {
     pml4[0] = (uint32_t)&pdp[0] | PG_PRESENT | PG_RW;
     pdp[0] = (uint32_t)&pte[0] | PG_PRESENT | PG_RW;
@@ -39,6 +41,7 @@ static void enable_paging() {
     // Identity map first 4MB
     map_page(0, 0);
     map_page(PAGE_SIZE_2MB, PAGE_SIZE_2MB);
+    map_page(PAGE_SIZE_2MB * 2, PAGE_SIZE_2MB * 2);
 
     // Map physical 0x00 to 0xc0000000
     //map_page(0, 0xc0000000);
@@ -62,6 +65,8 @@ static void setup_bootdata(struct multiboot_info * mb_info) {
     uint32_t i = 0;
     struct multiboot_mmap_entry * mmap_entry = (struct multiboot_mmap_entry *)mb_info->mmap_addr;
 
+    memset(&bootdata, 0, sizeof(bootdata));
+
     bootdata.mmap_count = 0;
 
     for(i = 0; i < mb_info->mmap_length / sizeof(struct multiboot_mmap_entry); i++) {
@@ -76,6 +81,8 @@ static void setup_bootdata(struct multiboot_info * mb_info) {
     bootdata.pml4 = EXTEND_POINTER(&pml4);
     bootdata.pdp = EXTEND_POINTER(&pdp);
     bootdata.pte = EXTEND_POINTER(&pte);
+    bootdata.gdt = EXTEND_POINTER(&GDT64);
+    bootdata.gdt_tss = EXTEND_POINTER(&GDT64_TSS);
 
     bootdata_ptr = (uintptr64_t)((uintptr_t)&bootdata);
 }
