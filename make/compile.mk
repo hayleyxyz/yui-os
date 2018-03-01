@@ -30,6 +30,8 @@ $(MODULE_ASMOBJS): %.asm.o: %.asm
 
 %.asm: # https://stackoverflow.com/questions/36226843/circular-dependency-dropped-with-asm-files-when-building-with-make
 
+-include $(MODULE_CSRCS:.c=.c.d)
+
 MODULE_COBJS :=
 MODULE_CSRCS :=
 MODULE_ASMSRCS :=

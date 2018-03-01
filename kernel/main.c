@@ -19,14 +19,7 @@ void kernel_main(struct bootdata * bootdata) {
 
     idt_init();
 
-    __asm volatile("int $30");
-    __asm volatile("int $31");
-
-    printk("before div by zero\n");
-
-//    volatile int x = 0/0;
-
-    printk("after div by zero\n");
+    int x = 0/0;
 
     for(;;) {}
 }

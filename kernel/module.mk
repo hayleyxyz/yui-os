@@ -1,7 +1,9 @@
 MODULE_SRCS := \
 	kernel/main.c \
 	kernel/console.c \
-	kernel/printf.c \
+	kernel/libc/printf.c \
+	kernel/libc/memset.c \
+	kernel/libc/strlen.c \
 	kernel/memory.c \
 	kernel/interrupts.asm \
 	kernel/idt.c

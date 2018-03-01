@@ -57,20 +57,43 @@ GDT64:                           ; Global Descriptor Table (64-bit).
     dw 0                         ; Limit (low).
     dw 0                         ; Base (low).
     db 0                         ; Base (middle)
-    db 10011010b                 ; Access (exec/read).
-    db 00100000b                 ; Granularity.
+    db 0b10011010                ; P(1) DPL(00) S(1) 1 C(0) R(1) A(0)
+    db 0b10101111                ; G(1) D(0) L(1) AVL(0) limit 19:16
     db 0                         ; Base (high).
     .Data: equ $ - GDT64         ; The data descriptor.
     dw 0                         ; Limit (low).
     dw 0                         ; Base (low).
     db 0                         ; Base (middle)
-    db 10010010b                 ; Access (read/write).
-    db 00000000b                 ; Granularity.
+    db 0b10010010                ; P(1) DPL(00) S(1) 0 E(0) W(1) A(0)
+    db 0b11001111                ; G(1) B(1) 0 0 limit 19:16
     db 0                         ; Base (high).
+    .UserCode: equ $ - GDT64     ; The code descriptor.
+    dw 0                         ; Limit (low).
+    dw 0                         ; Base (low).
+    db 0                         ; Base (middle)
+    db 0b11111010                ; P(1) DPL(11) S(1) 1 C(0) R(1) A(0)
+    db 0b10101111                ; G(1) D(0) L(1) AVL(0) limit 19:16
+    db 0                         ; Base (high).
+    .UserData: equ $ - GDT64     ; The data descriptor.
+    dw 0                         ; Limit (low).
+    dw 0                         ; Base (low).
+    db 0                         ; Base (middle)
+    db 0b11110010                ; P(1) DPL(11) S(1) 0 E(0) W(1) A(0)
+    db 0b11001111                ; G(1) B(1) 0 0 limit 19:16
+    db 0                         ; Base (high).
+    .TSS: equ $ - GDT64
+    dw 0                ; limit 15:00
+    dw 0                ; base 15:00
+    db  0                ; base 23:16
+    db  0b10001001       ; P(1) DPL(00) 0 10 B(0) 1
+    db  0b10000000       ; G(1) 0 0 AVL(0) limit 19:16
+    db  0                ; base 31:24
+    ; second half of 64bit desciptor
+    dd   0x00000000       ; base 63:32
+    dd   0x00000000       ; reserved/sbz
     .Pointer:                    ; The GDT-pointer.
     dw $ - GDT64 - 1             ; Limit.
     dq GDT64                     ; Base.
-
 
 [BITS 64]
 section .longmode

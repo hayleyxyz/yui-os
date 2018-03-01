@@ -49,10 +49,10 @@ int console_printf(const char *fmt, ...) {
     int ret;
     char buf[120];
 
-    va_list va;
-    va_start(va, fmt);
-    ret = mini_vsnprintf(buf, sizeof(buf), fmt, va);
-    va_end(va);
+    va_list ap;
+    va_start(ap, fmt);
+    ret = vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
 
     console_puts(buf);
 
