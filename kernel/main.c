@@ -116,10 +116,6 @@ void kernel_main(struct bootdata * bootdata) {
         halt();
     }
 
-    printk("pml4 0x%016x\n", bootdata->pml4);
-    printk("pdp 0x%016x\n", bootdata->pdp);
-    printk("pte 0x%016x\n", bootdata->pte);
-
     idt_init();
 
     init_memory(bootdata);
@@ -142,7 +138,8 @@ void kernel_main(struct bootdata * bootdata) {
 
     tss.tss_bitmap[IO_BITMAP_BYTES] = 0xff;
 
-    //x86_ltr(GDT_TSS);
+    x86_ltr(GDT_TSS);
+
 
     #if 0
     uintptr_t base = (uintptr_t)&tss;

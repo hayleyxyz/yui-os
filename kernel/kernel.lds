@@ -9,6 +9,10 @@ SECTIONS
         *(.text)
         *(.rodata)
         *(.data)
+        *(.got.plt)
+        *(code)
+        *(data)
+        *(.data.rel.local)
     }
     
     .bss ALIGN(4096) : {
