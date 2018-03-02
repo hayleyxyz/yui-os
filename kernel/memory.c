@@ -122,7 +122,6 @@ void init_memory(struct bootdata * bootdata) {
         }
     }
 
-
     // Manually allocate a page at the start of the available block of mem, and use it as backing for the memory_block structs
     uint64_t page_size = memory_page_size();
     uintptr_t addr = ALIGN_UP(largest_block->addr, page_size);
@@ -134,4 +133,17 @@ void init_memory(struct bootdata * bootdata) {
 
     // Mark the block we just allocated
     memory_split_block(addr, page_size);
+}
+
+void dump_memory() {
+    struct memory_block * block = head_memory_block;
+
+    printk("DUMPING MEMORY\n");
+
+    while(block) {
+        printk("addr: 0x%016llx len: 0x%016llx, avil: %c\n",
+            block->address, block->length, block->available ? 'Y' : 'N');
+
+        block = block->next;
+    }
 }

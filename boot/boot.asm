@@ -7,7 +7,7 @@ MULTIBOOT_CHECKSUM      equ -(MULTIBOOT_HEADER_MAGIC + MULTIBOOT_HEADER_FLAGS)
 
 STACK_SIZE              equ 4096
 
-extern multiboot_main, _bss_end, bootdata_ptr
+extern multiboot_main, _bss_end, bootdata_ptr, stack
 
 section .multiboot
 align 4
@@ -27,7 +27,9 @@ _multiboot:
 section .text
 global _start
 _start:
-    mov     esp, stack_end
+    mov     edx, stack
+    add     edx, 4096
+    mov     esp, edx
 
     push    ebx ; mb_info
     push    eax ; mb magic
@@ -36,13 +38,6 @@ _start:
     lgdt    [GDT64.Pointer]
     jmp     GDT64.Code:_longmode_start
     ud2
-
-section .bss
-align 4096
-stack_start:
-    resb STACK_SIZE
-stack_end:
-
 
 global GDT64, GDT64_TSS
 section .data

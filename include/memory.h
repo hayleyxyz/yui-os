@@ -39,6 +39,7 @@ struct memory_block {
 
 void init_memory(struct bootdata * bootdata);
 void * alloc_page();
+void dump_memory();
 
 static inline uint32_t memory_page_size() {
     return PAGE_SIZE_2MB;

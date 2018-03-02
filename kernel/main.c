@@ -9,9 +9,6 @@
 
 volatile void * gdt_base;
 
-#define IO_BITMAP_BITS      65536
-#define IO_BITMAP_BYTES     (IO_BITMAP_BITS/8)
-
 struct tss_x86_64 {
     uint32_t rsvd0;
     uint64_t rsp0;
@@ -28,13 +25,7 @@ struct tss_x86_64 {
     uint64_t ist7;
     uint32_t rsvd3;
     uint32_t rsvd4;
-    uint16_t rsvd5;
-    uint16_t iomap_base;
-
-    uint8_t tss_bitmap[IO_BITMAP_BYTES + 1];
 } __attribute__((packed));
-
-typedef struct tss_x86_64 tss_64_t;
 
 struct seg_desc_x86_64 {
     uint16_t limit_15_0;
@@ -81,11 +72,6 @@ void set_global_desc_64(struct seg_desc_x86_64* g, uint64_t base, uint32_t limit
 #define NUM_ASSIGNED_IST_ENTRIES 3
 volatile uint8_t interrupt_stacks[NUM_ASSIGNED_IST_ENTRIES][4096] __attribute__((aligned(16)));
 
-#if __GNUC__ > 3
-#define offsetof(type, member) __builtin_offsetof(type, member)
-#else
-#define offsetof(type, member) ((size_t)((char*)&(((type*)0)->member) - (char*)0))
-#endif
 
 static inline void x86_ltr(uint16_t sel) {
     __asm__ __volatile__ ("ltr %%ax" :: "a" (sel));
@@ -110,18 +96,7 @@ static inline void dump_blocks() {
     }
 }
 
-static inline uint64_t rdtsc(void) {
-    uint64_t tsc;
 
-    uint32_t tsc_low;
-    uint32_t tsc_hi;
-
-    __asm__ __volatile__("rdtsc" : "=a" (tsc_low), "=d" (tsc_hi));
-
-    tsc = ((uint64_t)tsc_hi << 32) | tsc_low;
-
-     return tsc;
-}
 
 void x86_uspace_entry(uintptr_t arg1, uintptr_t arg2, uintptr_t sp,
                       uintptr_t pc, uint64_t rflags) __attribute__((__noreturn__));
@@ -129,7 +104,16 @@ void x86_uspace_entry(uintptr_t arg1, uintptr_t arg2, uintptr_t sp,
 void user_thing() {
     printk("From usermode\n");
 
-    for(;;) {}
+    uint64_t tmp = rdtsc(), rsc = rdtsc();
+
+    for(;;) {
+        tmp = rdtsc();
+
+        if((tmp - rsc) > 1000000000) {
+            rsc = tmp;
+            printk("rdtsc: %llu\n", rsc);
+        }
+    }
 }
 
 void kernel_main(struct bootdata * bootdata) {
@@ -143,8 +127,13 @@ void kernel_main(struct bootdata * bootdata) {
 
     idt_init();
 
+    asm("sti");
+
     init_memory(bootdata);
     
+    printk("sizeof(struct tss_x86_64) %d\n", sizeof(struct tss_x86_64));
+
+    dump_memory();
 
     struct tss_x86_64 tss;
     memset(&tss, 0, sizeof(tss));
@@ -158,10 +147,6 @@ void kernel_main(struct bootdata * bootdata) {
     tss.ist1 = (uintptr_t)&interrupt_stacks[0] + 4096;
     tss.ist2 = (uintptr_t)&interrupt_stacks[1] + 4096;
     tss.ist3 = (uintptr_t)&interrupt_stacks[2] + 4096;
-
-    tss.iomap_base = offsetof(tss_64_t, tss_bitmap);
-
-    tss.tss_bitmap[IO_BITMAP_BYTES] = 0xff;
 
     tss.rsp0 = (uint64_t)&kernel_stack;
 

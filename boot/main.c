@@ -10,6 +10,9 @@ volatile uint64_t pml4[NO_OF_PT_ENTRIES] __attribute__((aligned(4096)));
 volatile uint64_t pdp[NO_OF_PT_ENTRIES] __attribute__((aligned(4096)));
 volatile uint64_t pte[NO_OF_PT_ENTRIES * NO_OF_PT_ENTRIES] __attribute__((aligned(4096)));
 
+#define STACK_SIZE 4096
+volatile uint8_t stack[STACK_SIZE] __attribute__((aligned(4096)));
+
 volatile struct bootdata bootdata;
 
 #define MMAP_ENTRIES 24
