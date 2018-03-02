@@ -20,8 +20,8 @@ volatile uintptr64_t bootdata_ptr;
 extern uintptr_t GDT64, GDT64_TSS;
 
 static void init_mapping() {
-    pml4[0] = (uint32_t)&pdp[0] | PG_PRESENT | PG_RW;
-    pdp[0] = (uint32_t)&pte[0] | PG_PRESENT | PG_RW;
+    pml4[0] = (uint32_t)&pdp[0] | PG_PRESENT | PG_RW | PG_USER;
+    pdp[0] = (uint32_t)&pte[0] | PG_PRESENT | PG_RW | PG_USER;
 }
 
 static void map_page(uint64_t physical_addr, uint64_t virtual_addr) {
@@ -29,10 +29,10 @@ static void map_page(uint64_t physical_addr, uint64_t virtual_addr) {
     uint32_t pt_index = (pd_index * NO_OF_PT_ENTRIES) + ((virtual_addr / PAGE_SIZE_2MB) % NO_OF_PT_ENTRIES);
 
     if((pdp[pd_index] & PG_PRESENT) == 0) {
-        pdp[pd_index] = (uint32_t)&pte[pt_index] | PG_PRESENT | PG_RW;
+        pdp[pd_index] = (uint32_t)&pte[pt_index] | PG_PRESENT | PG_RW | PG_USER;
     }
 
-    pte[pt_index] = physical_addr | PG_PRESENT | PG_RW | PG_PSE;
+    pte[pt_index] = physical_addr | PG_PRESENT | PG_RW | PG_PSE | PG_USER;
 }
 
 static void enable_paging() {

@@ -3,6 +3,23 @@ extern exception_handler
 [BITS 64]
 segment code
 
+GDT_USER_CODE equ ((8 * 3) | 3)
+GDT_USER_DATA equ ((8 * 4) | 3)
+
+global x86_uspace_entry
+x86_uspace_entry:
+    push qword GDT_USER_DATA ; ss
+    push rdx                   ; sp
+    push r8                    ; rflags
+    push qword GDT_USER_CODE ; cs
+    push rcx                   ; pc
+
+    ; TODO: clear registers
+
+    iretq
+
+
+
 %macro _interrupt_stub_macro 1
 global _interrupt_stub%1
 _interrupt_stub%1:

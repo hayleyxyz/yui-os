@@ -19,8 +19,8 @@
 
 #define GDT_CODE (8 * 1)
 #define GDT_DATA (8 * 2)
-#define GDT_USER_CODE (8 * 3)
-#define GDT_USER_DATA (8 * 4)
+#define GDT_USER_CODE ((8 * 3) | 3) // DPL 3
+#define GDT_USER_DATA ((8 * 4) | 3) // DPL 3
 #define GDT_TSS_INDEX 5
 #define GDT_TSS (8 * GDT_TSS_INDEX)
 

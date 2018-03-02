@@ -93,6 +93,9 @@ static inline void x86_ltr(uint16_t sel) {
 
 extern struct memory_block * head_memory_block;
 
+uint64_t kernel_stack[sizeof(uint64_t) * 128];
+uint64_t user_stack[sizeof(uint64_t) * 128];
+
 static inline void dump_blocks() {
     struct memory_block * block = head_memory_block;
 
@@ -105,6 +108,28 @@ static inline void dump_blocks() {
 
         block = block->next;
     }
+}
+
+static inline uint64_t rdtsc(void) {
+    uint64_t tsc;
+
+    uint32_t tsc_low;
+    uint32_t tsc_hi;
+
+    __asm__ __volatile__("rdtsc" : "=a" (tsc_low), "=d" (tsc_hi));
+
+    tsc = ((uint64_t)tsc_hi << 32) | tsc_low;
+
+     return tsc;
+}
+
+void x86_uspace_entry(uintptr_t arg1, uintptr_t arg2, uintptr_t sp,
+                      uintptr_t pc, uint64_t rflags) __attribute__((__noreturn__));
+
+void user_thing() {
+    printk("From usermode\n");
+
+    for(;;) {}
 }
 
 void kernel_main(struct bootdata * bootdata) {
@@ -138,8 +163,11 @@ void kernel_main(struct bootdata * bootdata) {
 
     tss.tss_bitmap[IO_BITMAP_BYTES] = 0xff;
 
+    tss.rsp0 = (uint64_t)&kernel_stack;
+
     x86_ltr(GDT_TSS);
 
+    x86_uspace_entry(0, 0, &user_stack, &user_thing, 0);
 
     #if 0
     uintptr_t base = (uintptr_t)&tss;
