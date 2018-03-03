@@ -6,7 +6,8 @@ MODULE_SRCS := \
 	kernel/libc/strlen.c \
 	kernel/memory.c \
 	kernel/interrupts.asm \
-	kernel/idt.c
+	kernel/idt.c \
+	kernel/start.S
 
 TARGET_KERNEL := yui-os-kernel.elf
 MODULE_TARGET := $(TARGET_KERNEL)

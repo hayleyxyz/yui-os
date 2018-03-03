@@ -3,15 +3,15 @@ extern exception_handler
 [BITS 64]
 segment code
 
-GDT_USER_CODE equ ((8 * 3) | 3)
-GDT_USER_DATA equ ((8 * 4) | 3)
+USER_CODE_64_SELECTOR equ (0x30 | 3)
+USER_DATA_SELECTOR equ (0x28 | 3)
 
 global x86_uspace_entry
 x86_uspace_entry:
-    push qword GDT_USER_DATA ; ss
+    push qword USER_DATA_SELECTOR ; ss
     push rdx                   ; sp
     push r8                    ; rflags
-    push qword GDT_USER_CODE ; cs
+    push qword USER_CODE_64_SELECTOR ; cs
     push rcx                   ; pc
 
     ; TODO: clear registers

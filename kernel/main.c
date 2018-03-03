@@ -6,6 +6,9 @@
 #include <idt.h>
 #include <memset.h>
 #include <gdt.h>
+#include <multiboot.h>
+
+volatile struct multiboot_info * _multiboot_info;
 
 volatile void * gdt_base;
 
@@ -120,20 +123,14 @@ void kernel_main(struct bootdata * bootdata) {
     console_clear();
     console_puts("yui-os KERNEL v0.0.1\n");
 
-    if(bootdata->magic != BOOTDATA_MAGIC) {
-        console_puts("Bootdata magic invalid!");
+    if((_multiboot_info->flags & MULTIBOOT_INFO_MEM_MAP) == 0) {
+        printk("No memory map provided by the bootloader!");
         halt();
     }
 
+    init_memory(_multiboot_info);
+
     idt_init();
-
-    asm("sti");
-
-    init_memory(bootdata);
-    
-    printk("sizeof(struct tss_x86_64) %d\n", sizeof(struct tss_x86_64));
-
-    dump_memory();
 
     struct tss_x86_64 tss;
     memset(&tss, 0, sizeof(tss));
@@ -150,9 +147,11 @@ void kernel_main(struct bootdata * bootdata) {
 
     tss.rsp0 = (uint64_t)&kernel_stack;
 
-    x86_ltr(GDT_TSS);
+    x86_ltr(TSS_SELECTOR(0));
 
     x86_uspace_entry(0, 0, &user_stack, &user_thing, 0);
+
+    for(;;) {}
 
     #if 0
     uintptr_t base = (uintptr_t)&tss;

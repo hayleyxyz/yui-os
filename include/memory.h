@@ -2,6 +2,7 @@
 
 #include <types.h>
 #include <bootdata.h>
+#include <multiboot.h>
 
 #define NO_OF_PT_ENTRIES        512
 #define PAGE_SIZE_2MB           0x200000
@@ -37,7 +38,7 @@ struct memory_block {
 };
 
 
-void init_memory(struct bootdata * bootdata);
+void init_memory(struct multiboot_info * mb_info);
 void * alloc_page();
 void dump_memory();
 

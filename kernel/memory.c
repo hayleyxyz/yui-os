@@ -1,9 +1,15 @@
 #include <memory.h>
 #include <console.h>
-volatile uint64_t * pml4;
-volatile uint64_t * pdp;
-volatile uint64_t * pte;
+#include <multiboot.h>
 
+/* top level kernel page tables, initialized in start.S */
+volatile uint64_t pml4[NO_OF_PT_ENTRIES] __attribute__((aligned(4096)));
+volatile uint64_t pdp[NO_OF_PT_ENTRIES] __attribute__((aligned(4096))); /* temporary */
+volatile uint64_t pte[NO_OF_PT_ENTRIES * NO_OF_PT_ENTRIES] __attribute__((aligned(4096)));
+
+
+// TODO: redo this
+uint8_t _memory_block_backing[sizeof(struct memory_block) * 128];
 struct memory_block * head_memory_block;
 
 
@@ -109,30 +115,41 @@ void * alloc_page() {
     return nullptr;
 }
 
-void init_memory(struct bootdata * bootdata) {
-    pml4 = (uint64_t *)bootdata->pml4;
-    pdp = (uint64_t *)bootdata->pdp;
-    pte = (uint64_t *)bootdata->pte;
+extern void __code_start;
+extern void _end;
 
-    struct mmap * mmap = (struct mmap *)bootdata->mmap,
+void init_memory(struct multiboot_info * mb_info) {
+    struct multiboot_mmap_entry * mmap_entry = (struct multiboot_mmap_entry *)mb_info->mmap_addr,
         * largest_block = nullptr;
-    for(uint32_t i = 0; i < bootdata->mmap_count; i++) {
-        if(mmap[i].type == MMAP_MEMORY_AVAILABLE && (!largest_block || largest_block->len < mmap[i].len)) {
-            largest_block = &mmap[i];
+    uint32_t i;
+
+    for(i = 0; i < mb_info->mmap_length / sizeof(struct multiboot_mmap_entry); i++) {
+        if(mmap_entry[i].type == MULTIBOOT_MEMORY_AVAILABLE &&
+            (!largest_block || largest_block->len < mmap_entry[i].len)) {
+            largest_block = &mmap_entry[i];
         }
     }
 
-    // Manually allocate a page at the start of the available block of mem, and use it as backing for the memory_block structs
-    uint64_t page_size = memory_page_size();
-    uintptr_t addr = ALIGN_UP(largest_block->addr, page_size);
-    void * allocated = map_page(addr, addr);
-    head_memory_block = (struct memory_block *)allocated;
+    uintptr_t kernel_start = (uintptr_t)&__code_start;
+    uintptr_t kernel_end = (uintptr_t)&_end;
+    uint64_t kernel_length = kernel_end - kernel_start;
 
-    // Fill out the first block, which details all free memory in the system
-    memory_block_new(largest_block->addr, largest_block->len, true);
+    head_memory_block = (struct memory_block *)&_memory_block_backing;
 
-    // Mark the block we just allocated
-    memory_split_block(addr, page_size);
+    struct memory_block * block_a = nullptr,
+        * block_b = nullptr;
+
+    if(largest_block->addr == kernel_start) { // very likely to be the case
+        block_a = memory_block_new(kernel_start, kernel_length, false);
+        block_b = memory_block_new(kernel_end, largest_block->len - kernel_length, true);
+
+        block_a->next = block_b;
+        block_b->prev = block_a;
+    }
+    else {
+        memory_block_new(largest_block->addr, largest_block->len, true);
+        memory_split_block(kernel_start, kernel_end);
+    }
 }
 
 void dump_memory() {

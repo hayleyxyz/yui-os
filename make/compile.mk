@@ -6,7 +6,10 @@ MODULE_COBJS := $(patsubst %.c,%.c.o,$(MODULE_CSRCS))
 MODULE_ASMSRCS := $(filter %.asm,$(MODULE_SRCS))
 MODULE_ASMOBJS := $(patsubst %.asm,%.asm.o,$(MODULE_ASMSRCS))
 
-MODULE_OBJS := $(MODULE_COBJS) $(MODULE_ASMOBJS)
+MODULE_GASSRCS := $(filter %.S,$(MODULE_SRCS))
+MODULE_GASOBJS := $(patsubst %.S,%.S.o,$(MODULE_GASSRCS))
+
+MODULE_OBJS := $(MODULE_COBJS) $(MODULE_ASMOBJS) $(MODULE_GASOBJS)
 ALL_OBJS += $(MODULE_OBJS)
 
 # https://www.gnu.org/software/make/manual/html_node/Target_002dspecific.html
@@ -23,10 +26,13 @@ $(MODULE_TARGET): $(MODULE_OBJS)
 	$(MODULE_LD) $(MODULE_LDFLAGS) $^ -o $@ 
 
 $(MODULE_COBJS): %.c.o: %.c
-	$(MODULE_CC) -c $< -MMD -MP -MF $(@:%o=%d) -o $@ $(MODULE_CFLAGS)
+	$(MODULE_CC) -c $< -MMD -MP -MF $(@:%o=%d) -o $@ $(MODULE_CFLAGS) -fPIE
 
 $(MODULE_ASMOBJS): %.asm.o: %.asm
 	$(MODULE_ASM) $< -o $@ $(MODULE_ASMFLAGS)
+
+$(MODULE_GASOBJS): %.S.o: %.S
+	$(MODULE_CC) -g -fPIE -c $< -MD -MP -MT $@ -MF $(@:%o=%d) -o $@ $(MODULE_CFLAGS)
 
 %.asm: # https://stackoverflow.com/questions/36226843/circular-dependency-dropped-with-asm-files-when-building-with-make
 
